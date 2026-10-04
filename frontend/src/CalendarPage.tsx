@@ -146,7 +146,7 @@ export default function CalendarPage({ org }: { org?: Organization }) {
       {form && (
         <Panel title={editing ? "내부 일정 수정" : "새 내부 일정"}>
           <form
-            key={editing?.id || "new"}
+            key={editing?.id || "new-" + selectedDay.toDateString()}
             onSubmit={async (e) => {
               e.preventDefault();
               setBusy(true);
@@ -183,7 +183,18 @@ export default function CalendarPage({ org }: { org?: Organization }) {
                   type="datetime-local"
                   name="startsAt"
                   required
-                  defaultValue={editing ? local(editing.startsAt) : local(cursor.toISOString())}
+                  defaultValue={
+                    editing
+                      ? local(editing.startsAt)
+                      : local(
+                          new Date(
+                            selectedDay.getFullYear(),
+                            selectedDay.getMonth(),
+                            selectedDay.getDate(),
+                            18,
+                          ).toISOString(),
+                        )
+                  }
                 />
               </Field>
               <Field label="종료">
@@ -194,7 +205,14 @@ export default function CalendarPage({ org }: { org?: Organization }) {
                   defaultValue={
                     editing
                       ? local(editing.endsAt)
-                      : local(new Date(cursor.getTime() + 3600000).toISOString())
+                      : local(
+                          new Date(
+                            selectedDay.getFullYear(),
+                            selectedDay.getMonth(),
+                            selectedDay.getDate(),
+                            19,
+                          ).toISOString(),
+                        )
                   }
                 />
               </Field>

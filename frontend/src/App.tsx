@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { NavLink, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Home, Compass, CalendarDays, Users, UserRound } from "./Icons";
+import { Home, Compass, CalendarDays, Users, UserRound, Bell } from "./Icons";
 import { request, ApiError, type Profile, type Organization } from "./api";
+import { ThemeToggle } from "./Theme";
+import { DemoNotice } from "./Environment";
 import AuthPage from "./AuthPage";
 import OrganizationPage from "./OrganizationPage";
 import ProfilePage from "./ProfilePage";
@@ -54,6 +56,21 @@ export default function App() {
     queryFn: () => request<Organization[]>("/organizations"),
     enabled: !!me.data,
   });
+  useEffect(() => {
+    if (!me.data || new URLSearchParams(location.search).has("org")) return;
+    try {
+      const saved = localStorage.getItem("ucc-organization-" + me.data.id);
+      setSelected(saved ? Number(saved) : undefined);
+    } catch {
+      setSelected(undefined);
+    }
+  }, [me.data?.id]);
+  const selectOrganization = (id: number) => {
+    setSelected(id);
+    try {
+      if (me.data) localStorage.setItem("ucc-organization-" + me.data.id, String(id));
+    } catch {}
+  };
   if (me.isPending) return <main className="loading">UCC를 불러오고 있어요…</main>;
   if (me.error) {
     if (me.error instanceof ApiError && me.error.status === 401) return <AuthPage />;
@@ -172,8 +189,22 @@ export default function App() {
             value={org?.id || ""}
             onChange={(e) => {
               const id = Number(e.target.value);
-              setSelected(id);
-              if (location.pathname === "/organization") navigate("/organization?org=" + id);
+              selectOrganization(id);
+              if (
+                [
+                  "/organization",
+                  "/events",
+                  "/recruitments",
+                  "/rentals",
+                  "/meetings",
+                  "/archive",
+                  "/calendar",
+                ].includes(location.pathname)
+              ) {
+                const params = new URLSearchParams(location.search);
+                params.set("org", String(id));
+                navigate(location.pathname + "?" + params.toString(), { replace: true });
+              }
             }}
           >
             <option value="" disabled>
@@ -185,13 +216,15 @@ export default function App() {
               </option>
             ))}
           </select>
+          <ThemeToggle />
           <NavLink to="/notifications" className="header-action" aria-label="알림 보기">
-            알림
+            <Bell size={19} />
           </NavLink>
           <NavLink to="/profile" className="avatar small" aria-label="내 프로필">
             {user.name[0]}
           </NavLink>
         </header>
+        <DemoNotice />
         <main id="page-content" tabIndex={-1}>
           <ErrorMessage error={organizations.error} />
           <Routes>
@@ -219,7 +252,7 @@ export default function App() {
             ))}
             <Route
               path="/organization"
-              element={<OrganizationPage key={org?.id} org={org} onSelect={setSelected} />}
+              element={<OrganizationPage key={org?.id} org={org} onSelect={selectOrganization} />}
             />
             <Route path="/rentals" element={<RentalPage key={org?.id} org={org} />} />
             <Route path="/profile" element={<ProfilePage user={user} />} />

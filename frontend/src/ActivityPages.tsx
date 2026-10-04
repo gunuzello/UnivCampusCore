@@ -1,10 +1,11 @@
 import { SaveButton } from "./PersonalPanel";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { request, download, type Organization, type Profile } from "./api";
 import LinksPanel from "./LinksPanel";
 import { Panel, Field, ErrorMessage, Empty, Action, Status, date, instant } from "./ui";
+import { CalendarDays, Users } from "./Icons";
 export type Kind = "events" | "recruitments";
 export type Activity = {
   id: number;
@@ -57,10 +58,20 @@ export function ActivityForm({
   const now = Date.now();
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError(undefined);
     const f = Object.fromEntries(new FormData(e.currentTarget));
     try {
+      if (!String(f.title).trim()) throw new Error("제목을 입력해 주세요.");
+      if (Date.parse(String(f.opensAt)) >= Date.parse(String(f.closesAt)))
+        throw new Error("신청 마감은 시작 이후로 지정해 주세요.");
+      if (
+        kind === "events" &&
+        (Date.parse(String(f.startsAt)) >= Date.parse(String(f.endsAt)) ||
+          Date.parse(String(f.closesAt)) > Date.parse(String(f.startsAt)))
+      )
+        throw new Error("행사 종료는 시작 이후, 신청 마감은 행사 시작 이전으로 지정해 주세요.");
       const body = {
         ...f,
         opensAt: instant(f.opensAt as string),
@@ -212,53 +223,127 @@ export function ActivityForm({
   );
 }
 export function ActivityList({ kind, org }: { kind: Kind; org?: Organization }) {
+  const [search, setSearch] = useState("");
+  const [openOnly, setOpenOnly] = useState(false);
   const q = useQuery({
     queryKey: [kind, org?.id],
     queryFn: () => request<Activity[]>("/organizations/" + org!.id + "/" + kind),
     enabled: !!org,
   });
-  if (!org) return <Empty>소속에서 학생회를 만들거나 선택해 주세요.</Empty>;
+  if (!org) return <Empty>소속에서 학생회나 동아리를 선택해 주세요.</Empty>;
+  const items = q.data?.filter(
+    (item) =>
+      (!openOnly ||
+        (item.status === "PUBLISHED" &&
+          Date.parse(item.opensAt) <= Date.now() &&
+          Date.parse(item.closesAt) > Date.now() &&
+          (kind !== "events" || item.applicationCount < (item.capacity || 0)))) &&
+      [item.title, item.description, item.location].some((text) =>
+        (text || "").toLowerCase().includes(search.trim().toLowerCase()),
+      ),
+  );
   return (
     <>
       <div className="page-heading">
         <h1>{label(kind)}</h1>
         <p>
           {kind === "events"
-            ? "학생회의 행사에 함께해요."
-            : "우리 학생회의 다음 이야기를 함께 만들어요."}
+            ? org.name + "의 행사와 함께 캠퍼스 생활을 넓혀요."
+            : org.name + "에서 함께할 구성원을 찾고 있어요."}
         </p>
       </div>
       <div className="toolbar">
+        <Field label={label(kind) + " 검색"}>
+          <input
+            type="search"
+            maxLength={200}
+            placeholder="제목 · 소개 · 장소"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </Field>
+        <label className="checks">
+          <input
+            type="checkbox"
+            checked={openOnly}
+            onChange={(e) => setOpenOnly(e.target.checked)}
+          />
+          신청 가능한 활동
+        </label>
+        {(search || openOnly) && (
+          <button
+            className="text-button"
+            onClick={() => {
+              setSearch("");
+              setOpenOnly(false);
+            }}
+          >
+            필터 초기화
+          </button>
+        )}
         {org.role && org.role !== "MEMBER" && (
           <Link className="primary link-button" to={"/" + kind + "/new"}>
             {label(kind)} 만들기
           </Link>
         )}
       </div>
+      {items && (
+        <p className="count-label" role="status">
+          {label(kind)} {items.length}개
+        </p>
+      )}
       <ErrorMessage error={q.error} />
       {q.isPending ? (
         <Empty>불러오는 중…</Empty>
-      ) : !q.data?.length ? (
-        <Empty>아직 등록한 {label(kind)}가 없어요.</Empty>
+      ) : !items?.length ? (
+        !q.error && (
+          <Empty>
+            {search || openOnly
+              ? "조건에 맞는 활동이 없어요. 검색어나 필터를 바꿔 보세요."
+              : "아직 등록된 " + label(kind) + "가 없어요."}
+          </Empty>
+        )
       ) : (
         <div className="grid">
-          {q.data.map((item) => (
-            <Link className="card card-link" to={"/" + kind + "/" + item.id} key={item.id}>
-              <div className="toolbar">
-                <Status value={item.status} />
-                <span className="meta">
-                  {kind === "events" ? item.location : "신입 구성원 모집"}
+          {items.map((item) => (
+            <Link
+              className="card card-link opportunity-card"
+              to={"/" + kind + "/" + item.id}
+              key={item.id}
+            >
+              <div className="card-topline">
+                <span
+                  className={"card-accent " + (kind === "events" ? "event-accent" : "team-accent")}
+                >
+                  {kind === "events" ? <CalendarDays size={23} /> : <Users size={23} />}
                 </span>
+                {item.status === "PUBLISHED" ? (
+                  <span className="badge">
+                    {Date.parse(item.opensAt) > Date.now()
+                      ? "신청 예정"
+                      : Date.parse(item.closesAt) <= Date.now()
+                        ? "기간 마감"
+                        : kind === "events" && item.applicationCount >= (item.capacity || 0)
+                          ? "정원 마감"
+                          : "신청 중"}
+                  </span>
+                ) : (
+                  <Status value={item.status} />
+                )}
               </div>
               <h2>{item.title}</h2>
-              <p className="muted">
-                {item.description?.slice(0, 100) || "상세 내용을 확인해 보세요."}
+              <p className="muted card-excerpt">
+                {item.description || "상세 내용을 확인해 보세요."}
               </p>
+              {kind === "events" && item.location && <span className="chip">{item.location}</span>}
               <p className="meta">신청 마감 · {date(item.closesAt)}</p>
-              <strong>
-                {item.applicationCount}
-                {kind === "events" ? " / " + item.capacity + "명 신청" : "명 지원"}
-              </strong>
+              <div className="card-footer">
+                <strong>
+                  {item.applicationCount}
+                  {kind === "events" ? " / " + item.capacity + "명 신청" : "명 지원"}
+                </strong>
+                <span aria-hidden="true">↗</span>
+              </div>
             </Link>
           ))}
         </div>
@@ -293,6 +378,13 @@ export function ActivityDetail({ kind, user }: { kind: Kind; user: Profile }) {
   const [applicantStatus, setApplicantStatus] = useState("");
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    setEditing(false);
+    setCopying(false);
+    setApplicantSearch("");
+    setApplicantStatus("");
+    setError(undefined);
+  }, [kind, id]);
   const orgs = useQuery({
     queryKey: ["organizations"],
     queryFn: () => request<Organization[]>("/organizations"),
@@ -344,6 +436,7 @@ export function ActivityDetail({ kind, user }: { kind: Kind; user: Profile }) {
     Date.now() >= Date.parse(a.opensAt) &&
     Date.now() < Date.parse(a.closesAt)
   );
+  const full = kind === "events" && a.applicationCount >= (a.capacity || 0);
   const status = async (next: string) => {
     await request("/" + kind + "/" + id + "/status", "PATCH", { status: next });
     await refresh();
@@ -360,7 +453,8 @@ export function ActivityDetail({ kind, user }: { kind: Kind; user: Profile }) {
         <p>
           {kind === "events" && a.startsAt
             ? date(a.startsAt) + " · " + a.location
-            : "학생회 신규 구성원 모집"}
+            : (orgs.data?.find((o) => o.id === a.organizationId)?.name || "캠퍼스 조직") +
+              " 신규 구성원 모집"}
         </p>
       </div>
       {(editing || copying) && (
@@ -613,6 +707,11 @@ export function ActivityDetail({ kind, user }: { kind: Kind; user: Profile }) {
             </Link>
           </div>
           <ErrorMessage error={mine.error} />
+          {mine.isPending && (
+            <p className="muted" role="status">
+              내 신청 상태를 확인하고 있어요…
+            </p>
+          )}
           {mine.data && mine.data.status !== "CANCELLED" ? (
             <>
               <div className="divider" />
@@ -639,6 +738,7 @@ export function ActivityDetail({ kind, user }: { kind: Kind; user: Profile }) {
             <form
               onSubmit={async (e: FormEvent<HTMLFormElement>) => {
                 e.preventDefault();
+                if (busy || closed || full || mine.isPending || mine.error) return;
                 setBusy(true);
                 setError(undefined);
                 const f = new FormData(e.currentTarget);
@@ -656,12 +756,31 @@ export function ActivityDetail({ kind, user }: { kind: Kind; user: Profile }) {
             >
               {a.questions.map((q, i) => (
                 <Field key={i} label={q}>
-                  <textarea name={"answer-" + i} required maxLength={5000} disabled={closed} />
+                  <textarea
+                    name={"answer-" + i}
+                    required
+                    maxLength={5000}
+                    disabled={closed || full || !!mine.error}
+                  />
                 </Field>
               ))}
-              {closed && <p className="muted">현재 신청 기간이 아니거나 활동이 마감되었어요.</p>}
+              {closed && (
+                <p className="inline-notice">
+                  {a.status === "PUBLISHED" && Date.now() < Date.parse(a.opensAt)
+                    ? "아직 신청 시작 전이에요. 시작 일시를 확인해 주세요."
+                    : "신청 기간이 끝났거나 활동이 마감되었어요."}
+                </p>
+              )}
+              {!closed && full && (
+                <p className="inline-notice">
+                  정원이 모두 찼어요. 취소 자리가 생기면 신청할 수 있어요.
+                </p>
+              )}
               <ErrorMessage error={error} />
-              <button className="primary wide" disabled={closed || busy || mine.isPending}>
+              <button
+                className="primary wide"
+                disabled={closed || full || busy || mine.isPending || !!mine.error}
+              >
                 {busy ? "제출 중…" : kind === "events" ? "행사 신청하기" : "지원서 제출하기"}
               </button>
             </form>

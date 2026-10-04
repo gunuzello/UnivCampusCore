@@ -6,6 +6,16 @@
     <meta name="theme-color" content="#f0503f" />
     <meta name="description" content="캠퍼스의 기회를 찾고, 함께 만들고, 다음으로 이어가는 UCC" />
     <link rel="icon" href="/ucc-logo.png" />
+    <script>
+      try {
+        const theme = localStorage.getItem("ucc-theme");
+        const dark =
+          theme === "dark" ||
+          ((!theme || theme === "system") && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        document.documentElement.style.colorScheme = dark ? "dark" : "light";
+      } catch {}
+    </script>
     <title>UCC · 캠퍼스의 이야기를 잇다</title>
   </head>
   <body>

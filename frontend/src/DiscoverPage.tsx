@@ -1,11 +1,19 @@
-import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { Organization } from "./api";
 import { ProgramList } from "./ProgramPages";
 import { TeamList } from "./TeamPages";
 import ClubList from "./ClubList";
 export default function DiscoverPage({ org }: { org?: Organization }) {
   const tabs = ["프로그램", "팀 구하기", "동아리"];
-  const [tab, setTab] = useState("프로그램");
+  const keys = ["programs", "teams", "clubs"];
+  const [params, setParams] = useSearchParams();
+  const index = keys.indexOf(params.get("tab") || "programs");
+  const tab = tabs[index < 0 ? 0 : index];
+  const setTab = (value: string) => {
+    const next = new URLSearchParams(params);
+    next.set("tab", keys[tabs.indexOf(value)]);
+    setParams(next, { replace: true });
+  };
   return (
     <>
       <div className="page-heading">

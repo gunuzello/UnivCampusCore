@@ -10,6 +10,7 @@ type Work = {
   requestedRole: string;
   status: string;
   response: string;
+  creatorId: number;
   creatorName: string;
   assigneeId: number | null;
   assigneeName: string;
@@ -56,6 +57,10 @@ export default function OrganizationWorkPanel({ org }: { org: Organization }) {
     await client.invalidateQueries({ queryKey: ["notifications"] });
     await client.invalidateQueries({ queryKey: ["calendar"] });
   };
+  const me = useQuery({ queryKey: ["me"], queryFn: () => request<Profile>("/me") });
+  const pendingRoleRequest = q.data?.some(
+    (w) => w.kind === "ROLE" && w.status === "PENDING" && w.creatorId === me.data?.id,
+  );
   const visible = q.data?.filter((w) => w.kind === kind);
   return (
     <Panel title="건의와 소속 운영">
@@ -84,6 +89,7 @@ export default function OrganizationWorkPanel({ org }: { org: Organization }) {
         (kind === "TASK" && manage)) && (
         <button
           className="secondary"
+          disabled={kind === "ROLE" && (q.isPending || !!pendingRoleRequest)}
           onClick={() => {
             setEditing(undefined);
             setOpen(!open);
@@ -91,6 +97,12 @@ export default function OrganizationWorkPanel({ org }: { org: Organization }) {
         >
           새 {kinds[kind]}
         </button>
+      )}
+      {kind === "ROLE" && pendingRoleRequest && (
+        <p role="status" className="muted">
+          대표가 검토 중인 권한 신청이 있어요. 아래에서 진행 상태를 확인하거나 신청을 취소할 수
+          있어요.
+        </p>
       )}
       {open && (
         <form
@@ -124,8 +136,8 @@ export default function OrganizationWorkPanel({ org }: { org: Organization }) {
           </Field>
           {kind === "ROLE" && (
             <Field label="신청 역할">
-              <select name="requestedRole">
-                <option value="STAFF">운영진</option>
+              <select name="requestedRole" defaultValue={org.role === "STAFF" ? "LEADER" : "STAFF"}>
+                {org.role !== "STAFF" && <option value="STAFF">운영진</option>}
                 <option value="LEADER">대표</option>
               </select>
             </Field>
