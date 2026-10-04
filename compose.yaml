@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ucc}
+      POSTGRES_USER: ${POSTGRES_USER:-ucc}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ucc_local_only}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ucc_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+volumes:
+  ucc_pgdata:

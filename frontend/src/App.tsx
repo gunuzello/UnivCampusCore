@@ -1,0 +1,1 @@
+export default function App(){return <main><h1>UCC</h1><p>학생회 운영을 이어가는 공간</p></main>}
