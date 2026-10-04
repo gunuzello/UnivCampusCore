@@ -1,5 +1,6 @@
 package kr.ucc;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -9,6 +10,7 @@ import java.time.Instant;
 import java.util.*;
 import kr.ucc.event.*;
 import kr.ucc.organization.*;
+import kr.ucc.recruitment.*;
 import kr.ucc.user.*;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +44,9 @@ class OperationsTest {
   @Autowired
   EventService events;
 
+  @Autowired
+  RecruitmentService recruitments;
+
   Long leader, student, org;
 
   @BeforeEach
@@ -54,6 +59,120 @@ class OperationsTest {
 
   String body(Object value) throws Exception {
     return json.writeValueAsString(value);
+  }
+
+  @Test
+  void eventCsvRequiresStaffAndUsesSearchAndStatusFilters() throws Exception {
+    var now = Instant.now();
+    var event = events.create(
+      org,
+      leader,
+      new EventService.Input(
+        "명단 행사",
+        "설명",
+        now.minusSeconds(60),
+        now.plusSeconds(3600),
+        now.plusSeconds(7200),
+        now.plusSeconds(10800),
+        "학생회실",
+        10,
+        List.of("알레르기")
+      )
+    );
+    events.status(event.id(), leader, Event.Status.PUBLISHED);
+    events.apply(event.id(), student, new EventService.Apply(List.of("없음, 감사합니다")));
+    String path = "/api/v1/events/" + event.id() + "/applications/export";
+    mvc.perform(get(path)).andExpect(status().isUnauthorized());
+    mvc.perform(get(path).with(user(student.toString()))).andExpect(status().isForbidden());
+    memberships.save(new Membership(org, student, Membership.Role.MEMBER));
+    mvc.perform(get(path).with(user(student.toString()))).andExpect(status().isForbidden());
+    var result = mvc
+      .perform(
+        get(path)
+          .with(user(leader.toString()))
+          .param("search", "OPSSTUDENT")
+          .param("status", "REGISTERED")
+      )
+      .andExpect(status().isOk())
+      .andExpect(header().string("Cache-Control", "no-store"))
+      .andExpect(
+        header().string(
+          "Content-Disposition",
+          "attachment; filename=\"event-" + event.id() + "-applicants.csv\""
+        )
+      )
+      .andReturn();
+    String csv = new String(
+      result.getResponse().getContentAsByteArray(),
+      java.nio.charset.StandardCharsets.UTF_8
+    );
+    assertTrue(csv.startsWith("\uFEFF"));
+    assertTrue(csv.contains("opsstudent@test.dev"));
+    assertTrue(csv.contains("\"알레르기\""));
+    assertTrue(csv.contains("\"없음, 감사합니다\""));
+    var filtered = mvc
+      .perform(get(path).with(user(leader.toString())).param("status", "CANCELLED"))
+      .andExpect(status().isOk())
+      .andReturn();
+    assertFalse(
+      new String(
+        filtered.getResponse().getContentAsByteArray(),
+        java.nio.charset.StandardCharsets.UTF_8
+      ).contains("opsstudent@test.dev")
+    );
+    mvc
+      .perform(get(path).with(user(leader.toString())).param("status", "ACCEPTED"))
+      .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void recruitmentCsvIncludesAnswersAndOnlyMatchingResults() throws Exception {
+    var now = Instant.now();
+    var recruitment = recruitments.create(
+      org,
+      leader,
+      new RecruitmentService.Input(
+        "지원자 명단",
+        "안내",
+        now.minusSeconds(60),
+        now.plusSeconds(3600),
+        List.of("지원 동기")
+      )
+    );
+    recruitments.status(recruitment.id(), leader, Recruitment.Status.PUBLISHED);
+    var application = recruitments.apply(
+      recruitment.id(),
+      student,
+      new RecruitmentService.Apply(List.of("=1+1"))
+    );
+    recruitments.result(
+      recruitment.id(),
+      application.id(),
+      leader,
+      new RecruitmentService.ApplicationStatus(RecruitmentApplication.Status.ACCEPTED)
+    );
+    String path = "/api/v1/recruitments/" + recruitment.id() + "/applications/export";
+    mvc.perform(get(path).with(user(student.toString()))).andExpect(status().isForbidden());
+    var result = mvc
+      .perform(get(path).with(user(leader.toString())).param("status", "ACCEPTED"))
+      .andExpect(status().isOk())
+      .andReturn();
+    String csv = new String(
+      result.getResponse().getContentAsByteArray(),
+      java.nio.charset.StandardCharsets.UTF_8
+    );
+    assertTrue(csv.contains("합격"));
+    assertTrue(csv.contains("\"'=1+1\""));
+    var filtered = mvc
+      .perform(get(path).with(user(leader.toString())).param("search", "다른 학생"))
+      .andExpect(status().isOk())
+      .andReturn();
+    assertFalse(
+      new String(
+        filtered.getResponse().getContentAsByteArray(),
+        java.nio.charset.StandardCharsets.UTF_8
+      ).contains("opsstudent@test.dev")
+    );
   }
 
   @Test
@@ -122,6 +241,57 @@ class OperationsTest {
       .perform(get("/api/v1/organizations/" + org + "/archive").with(user(leader.toString())))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$[0].title").value("정기회의"));
+  }
+
+  @Test
+  void pastSchedulesHavePrivateDetailsAndArchiveLinks() throws Exception {
+    var now = Instant.now();
+    var result = mvc
+      .perform(
+        post("/api/v1/organizations/" + org + "/schedules")
+          .with(user(leader.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content(
+            body(
+              Map.of(
+                "title",
+                "지난 운영 일정",
+                "startsAt",
+                now.minusSeconds(7200),
+                "endsAt",
+                now.minusSeconds(3600),
+                "description",
+                "운영 기록"
+              )
+            )
+          )
+      )
+      .andExpect(status().isOk())
+      .andReturn();
+    String id = json.readTree(result.getResponse().getContentAsString()).get("id").asText();
+    mvc
+      .perform(get("/api/v1/schedules/" + id).with(user(student.toString())))
+      .andExpect(status().isForbidden());
+    mvc
+      .perform(get("/api/v1/schedules/" + id).with(user(leader.toString())))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("schedule.path").value("/schedules/" + id));
+    mvc
+      .perform(get("/api/v1/organizations/" + org + "/archive").with(user(leader.toString())))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[0].type").value("SCHEDULE"));
+    mvc
+      .perform(
+        post("/api/v1/organizations/" + org + "/links")
+          .param("type", "SCHEDULE")
+          .param("targetId", id)
+          .with(user(leader.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content(body(Map.of("title", "자료", "url", "https://example.com", "description", "")))
+      )
+      .andExpect(status().isOk());
   }
 
   @Test

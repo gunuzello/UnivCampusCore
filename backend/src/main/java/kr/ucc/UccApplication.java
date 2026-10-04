@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication(
   exclude = org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration.class
 )
+@org.springframework.scheduling.annotation.EnableScheduling
 public class UccApplication {
 
   public static void main(String[] args) {

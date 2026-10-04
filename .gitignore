@@ -11,3 +11,5 @@ target/
 .local/
 
 *.tsbuildinfo
+
+__pycache__/

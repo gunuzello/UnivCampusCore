@@ -11,6 +11,7 @@ import kr.ucc.event.*;
 import kr.ucc.meeting.*;
 import kr.ucc.organization.*;
 import kr.ucc.recruitment.*;
+import kr.ucc.schedule.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ public class ArchiveController {
   private final EventService events;
   private final RecruitmentService recruitments;
   private final MeetingService meetings;
+  private final ScheduleRepository schedules;
 
   public ArchiveController(
     HandoverNoteRepository notes,
@@ -34,7 +36,8 @@ public class ArchiveController {
     OrganizationAccess access,
     EventService events,
     RecruitmentService recruitments,
-    MeetingService meetings
+    MeetingService meetings,
+    ScheduleRepository schedules
   ) {
     this.notes = notes;
     this.links = links;
@@ -42,6 +45,7 @@ public class ArchiveController {
     this.events = events;
     this.recruitments = recruitments;
     this.meetings = meetings;
+    this.schedules = schedules;
   }
 
   public record NoteInput(
@@ -114,6 +118,18 @@ public class ArchiveController {
           "COMPLETED"
         )
       );
+    for (var s : schedules.findByOrganizationIdOrderByStartsAtAsc(org))
+      if (s.endsAt.isBefore(Instant.now())) out.add(
+        new Activity(
+          "schedule-" + s.id,
+          "SCHEDULE",
+          s.id,
+          s.title,
+          s.startsAt,
+          "/schedules/" + s.id,
+          "COMPLETED"
+        )
+      );
     return out
       .stream()
       .filter(
@@ -171,6 +187,7 @@ public class ArchiveController {
       case "EVENT" -> events.get(id, user).organizationId();
       case "RECRUITMENT" -> recruitments.get(id, user).organizationId();
       case "MEETING" -> meetings.get(id, user).organizationId();
+      case "SCHEDULE" -> schedules.findById(id).orElseThrow(ApiException::missing).organizationId;
       case "NOTE" -> notes.findById(id).orElseThrow(ApiException::missing).organizationId;
       default -> throw ApiException.bad("INVALID_TARGET", "지원하지 않는 자료 연결 대상입니다.");
     };

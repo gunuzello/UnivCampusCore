@@ -1,8 +1,14 @@
 import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { request } from "./api";
+import { ThemeToggle } from "./Theme";
+import { useDemoMode } from "./Environment";
 import { Field, ErrorMessage } from "./ui";
 export default function AuthPage() {
+  const demo = useDemoMode();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [signup, setSignup] = useState(false);
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
@@ -24,6 +30,9 @@ export default function AuthPage() {
   }
   return (
     <main className="auth">
+      <div className="auth-theme">
+        <ThemeToggle />
+      </div>
       <div className="auth-story">
         <img src="/ucc-logo.png" alt="UCC" />
         <p className="eyebrow">UNIVERSITY CAMPUS CORE</p>
@@ -35,7 +44,7 @@ export default function AuthPage() {
         <p>
           모집부터 행사, 회의와 기록까지.
           <br />
-          우리 학생회의 일을 한곳에서 이어가요.
+          우리 캠퍼스의 기회와 이야기를 한곳에서 이어가요.
         </p>
         <div className="pills">
           <span>모집과 지원</span>
@@ -50,18 +59,37 @@ export default function AuthPage() {
         </p>
         <form onSubmit={submit}>
           <Field label="이메일">
-            <input name="email" type="email" autoComplete="email" required maxLength={254} />
+            <input
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              maxLength={254}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
+            />
           </Field>
           <Field label="비밀번호">
             <input
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               minLength={8}
               maxLength={72}
               required
               autoComplete={signup ? "new-password" : "current-password"}
             />
           </Field>
+          <button
+            type="button"
+            className="text-button password-toggle"
+            onClick={() => setShowPassword(!showPassword)}
+            aria-pressed={showPassword}
+          >
+            {showPassword ? "비밀번호 숨기기" : "비밀번호 보기"}
+          </button>
           {signup && (
             <>
               <Field label="이름">
@@ -84,12 +112,41 @@ export default function AuthPage() {
           className="text-button wide"
           onClick={() => {
             setSignup(!signup);
+            setPassword("");
             setError(undefined);
           }}
         >
           {signup ? "이미 계정이 있어요" : "처음이라면 회원가입"}
         </button>
-        <p className="hint">로컬 MVP · 학교 인증은 추후 지원해요.</p>
+        {demo && !signup && (
+          <div className="demo-accounts">
+            <strong>캠퍼스 미리보기</strong>
+            <p>역할을 골라 가상의 캠퍼스를 둘러보세요.</p>
+            <div className="toolbar">
+              {[
+                ["leader", "대표"],
+                ["staff", "운영진"],
+                ["student", "학생"],
+              ].map(([account, label]) => (
+                <button
+                  type="button"
+                  className="secondary"
+                  key={account}
+                  onClick={() => {
+                    setEmail(account + "@ucc.local");
+                    setPassword("ucc-local-2026!");
+                    setError(undefined);
+                  }}
+                >
+                  {label} 계정
+                </button>
+              ))}
+            </div>
+            <p className="hint">
+              계정을 선택한 뒤 로그인해 주세요. 데이터와 인물은 모두 가상입니다.
+            </p>
+          </div>
+        )}
       </section>
     </main>
   );

@@ -67,6 +67,10 @@ class ActivityRulesTest {
     events.status(e.id(), leader, Event.Status.PUBLISHED);
     var a = events.apply(e.id(), student, new EventService.Apply(List.of("없음")));
     assertEquals(EventApplication.Status.REGISTERED, a.status());
+    assertEquals(a.id(), events.application(e.id(), a.id(), leader).id());
+    assertThrows(ApiException.class, () -> events.application(e.id(), a.id(), student));
+    var another = events.create(org, leader, d);
+    assertThrows(ApiException.class, () -> events.application(another.id(), a.id(), leader));
     assertEquals(
       "ALREADY_APPLIED",
       assertThrows(ApiException.class, () ->
@@ -144,6 +148,10 @@ class ActivityRulesTest {
       new RecruitmentService.Apply(List.of("함께하고 싶어요", "기획"))
     );
     assertThrows(ApiException.class, () -> recruitments.applicants(r.id(), student));
+    assertEquals(a.id(), recruitments.application(r.id(), a.id(), leader).id());
+    assertThrows(ApiException.class, () -> recruitments.application(r.id(), a.id(), student));
+    var another = recruitments.create(org, leader, d);
+    assertThrows(ApiException.class, () -> recruitments.application(another.id(), a.id(), leader));
     recruitments.result(
       r.id(),
       a.id(),
