@@ -135,8 +135,8 @@ export default function OrganizationPage({
             <Empty>학생회를 만들거나 상단에서 선택해 주세요.</Empty>
           )}
         </Panel>
-        {org?.type === "CLUB" && <ClubDetailsPanel key={org.id} org={org} />}
-        {org && <NoticesPanel key={org.id} org={org} />}
+        {org?.type === "CLUB" && <ClubDetailsPanel key={"ClubDetailsPanel-" + org.id} org={org} />}
+        {org && <NoticesPanel key={"NoticesPanel-" + org.id} org={org} />}
         {org?.role && (
           <Panel title="함께하는 구성원">
             <ErrorMessage error={members.error} />
@@ -226,8 +226,8 @@ export default function OrganizationPage({
           </button>
         </form>
       </Panel>
-      {org && <OrganizationWorkPanel key={org.id} org={org} />}
-      {org && <MembershipRequestsPanel key={org.id} org={org} />}
+      {org && <OrganizationWorkPanel key={"OrganizationWorkPanel-" + org.id} org={org} />}
+      {org && <MembershipRequestsPanel key={"MembershipRequestsPanel-" + org.id} org={org} />}
       <ErrorMessage error={error} />
     </div>
   );

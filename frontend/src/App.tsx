@@ -20,6 +20,7 @@ import { ProgramDetail } from "./ProgramPages";
 import DiscoverPage from "./DiscoverPage";
 export default function App() {
   const query = useQueryClient();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [selected, setSelected] = useState<number>();
   const location = useLocation();
   const navigate = useNavigate();
@@ -27,6 +28,26 @@ export default function App() {
     const value = new URLSearchParams(location.search).get("org");
     if (value && /^\d+$/.test(value) && Number(value) > 0) setSelected(Number(value));
   }, [location.search]);
+  useEffect(() => {
+    setMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: "instant" });
+    document.getElementById("page-content")?.focus({ preventScroll: true });
+  }, [location.pathname]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    const closeOutside = (e: MouseEvent) => {
+      if (!(e.target as Element).closest(".mobile-menu")) setMenuOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("click", closeOutside);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("click", closeOutside);
+    };
+  }, [menuOpen]);
   const me = useQuery({ queryKey: ["me"], queryFn: () => request<Profile>("/me") });
   const organizations = useQuery({
     queryKey: ["organizations"],
@@ -47,6 +68,9 @@ export default function App() {
   const org = organizations.data?.find((o) => o.id === selected) || organizations.data?.[0];
   return (
     <div className="shell">
+      <a className="skip-link" href="#page-content">
+        본문으로 이동
+      </a>
       <aside>
         <NavLink to="/" className="brand">
           <img src="/ucc-logo.png" alt="" />
@@ -56,12 +80,13 @@ export default function App() {
           </div>
         </NavLink>
         <p className="eyebrow">캠퍼스의 이야기를 잇다</p>
-        <nav>
+        <nav aria-label="주요 메뉴">
           {[
             ["/", "홈", Home],
             ["/discover", "찾기", Compass],
             ["/calendar", "캘린더", CalendarDays],
             ["/organization", "소속", Users],
+            ["/profile", "내 정보", UserRound],
             ["/events", "행사", Compass],
             ["/recruitments", "모집", Users],
             ["/rentals", "대여사업", Users],
@@ -74,9 +99,11 @@ export default function App() {
               <NavLink
                 key={to as string}
                 to={to as string}
-                end
+                end={to === "/"}
                 className={
-                  ["/", "/discover", "/calendar", "/organization"].includes(to as string)
+                  ["/", "/discover", "/calendar", "/organization", "/profile"].includes(
+                    to as string,
+                  )
                     ? undefined
                     : "secondary-nav"
                 }
@@ -111,6 +138,35 @@ export default function App() {
             <span className="eyebrow">UNIVERSITY CAMPUS CORE</span>
             <p>함께 만들고, 다음으로 이어가요.</p>
           </div>
+          <div className="mobile-menu">
+            <button
+              className="secondary"
+              aria-expanded={menuOpen}
+              aria-controls="mobile-links"
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              메뉴
+            </button>
+            {menuOpen && (
+              <nav id="mobile-links" aria-label="활동 메뉴">
+                {[
+                  ["/events", "행사"],
+                  ["/recruitments", "모집"],
+                  ["/rentals", "대여사업"],
+                  ...(org?.role
+                    ? [
+                        ["/meetings", "회의"],
+                        ["/archive", "지난 활동"],
+                      ]
+                    : []),
+                ].map(([to, label]) => (
+                  <NavLink key={to} to={to}>
+                    {label}
+                  </NavLink>
+                ))}
+              </nav>
+            )}
+          </div>
           <select
             aria-label="소속 선택"
             value={org?.id || ""}
@@ -136,7 +192,7 @@ export default function App() {
             {user.name[0]}
           </NavLink>
         </header>
-        <main>
+        <main id="page-content" tabIndex={-1}>
           <ErrorMessage error={organizations.error} />
           <Routes>
             <Route path="/" element={<Dashboard user={user} org={org} />} />

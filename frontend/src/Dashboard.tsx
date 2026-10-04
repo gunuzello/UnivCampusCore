@@ -29,17 +29,16 @@ export default function Dashboard({ user, org }: { user: Profile; org?: Organiza
           "&to=" +
           encodeURIComponent(to),
       ),
-    enabled: !!org,
   });
   return (
     <>
       <div className="page-heading">
         <span className="eyebrow">{user.department || "나의 캠퍼스"}</span>
         <h1>{user.name}님, 반가워요.</h1>
-        <p>우리 학생회의 오늘을 확인해요.</p>
+        <p>캠퍼스의 오늘과 함께할 기회를 확인해요.</p>
       </div>
       {!org ? (
-        <Panel title="우리 학생회를 시작해요">
+        <Panel title="우리 소속를 시작해요">
           <Empty>첫 학생회를 만들고 캠퍼스의 이야기를 이어가세요.</Empty>
           <Link className="primary link-button" to="/organization">
             학생회 만들기
@@ -48,7 +47,7 @@ export default function Dashboard({ user, org }: { user: Profile; org?: Organiza
       ) : (
         <>
           <div className="grid">
-            <Panel title="우리 학생회">
+            <Panel title="우리 소속">
               <h2>{org.name}</h2>
               <Link className="meta" to="/organization">
                 소속에서 보기 →
@@ -67,6 +66,7 @@ export default function Dashboard({ user, org }: { user: Profile; org?: Organiza
               <p className="meta">다음 구성원을 기다려요</p>
             </Panel>
           </div>
+          <div className="dashboard-spacer" />
           <Panel title="이번 주 일정">
             <ErrorMessage error={calendar.error} />
             {!calendar.data?.length && <Empty>이번 주에 예정된 일정이 없어요.</Empty>}
@@ -81,7 +81,7 @@ export default function Dashboard({ user, org }: { user: Profile; org?: Organiza
             </Link>
           </Panel>
           {[
-            ["events", "학생회 행사", events],
+            ["events", "소속 행사", events],
             ["recruitments", "신입부원 모집", recruits],
           ].map(([kind, title, q]) => {
             const query = q as typeof events;

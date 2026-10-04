@@ -21,6 +21,7 @@ const local = (v: string) => {
 export default function CalendarPage({ org }: { org?: Organization }) {
   const query = useQueryClient();
   const [cursor, setCursor] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState(new Date());
   const [mode, setMode] = useState<"month" | "week">("month");
   const [form, setForm] = useState(false);
   const [editing, setEditing] = useState<Entry>();
@@ -50,13 +51,24 @@ export default function CalendarPage({ org }: { org?: Organization }) {
   const days: Date[] = [];
   for (let d = new Date(from); d < to; d.setDate(d.getDate() + 1)) days.push(new Date(d));
   const blanks = mode === "month" ? (from.getDay() + 6) % 7 : 0;
+  const dayEntries = (d: Date) => {
+    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    return (
+      q.data?.filter(
+        (e) => Date.parse(e.startsAt) < end.getTime() && Date.parse(e.endsAt) > start.getTime(),
+      ) || []
+    );
+  };
+  const selectedEntries = dayEntries(selectedDay);
   return (
     <>
       <div className="page-heading">
         <h1>캘린더</h1>
         <p>소속 활동, 프로그램, 팀 모임과 업무 마감을 한눈에 봐요.</p>
       </div>
-      <div className="toolbar">
+      <div className="toolbar calendar-toolbar">
         <button
           className="secondary"
           onClick={() => {
@@ -66,6 +78,7 @@ export default function CalendarPage({ org }: { org?: Organization }) {
               d.setMonth(d.getMonth() - 1);
             } else d.setDate(d.getDate() - 7);
             setCursor(d);
+            setSelectedDay(d);
           }}
         >
           ← 이전
@@ -83,20 +96,30 @@ export default function CalendarPage({ org }: { org?: Organization }) {
               d.setMonth(d.getMonth() + 1);
             } else d.setDate(d.getDate() + 7);
             setCursor(d);
+            setSelectedDay(d);
           }}
         >
           다음 →
         </button>
-        <button className="secondary" onClick={() => setCursor(new Date())}>
+        <button
+          className="secondary"
+          onClick={() => {
+            const today = new Date();
+            setCursor(today);
+            setSelectedDay(today);
+          }}
+        >
           오늘
         </button>
         <button
+          aria-pressed={mode === "month"}
           className={mode === "month" ? "primary" : "secondary"}
           onClick={() => setMode("month")}
         >
           월
         </button>
         <button
+          aria-pressed={mode === "week"}
           className={mode === "week" ? "primary" : "secondary"}
           onClick={() => setMode("week")}
         >
@@ -115,6 +138,11 @@ export default function CalendarPage({ org }: { org?: Organization }) {
         )}
       </div>
       <ErrorMessage error={q.error} />
+      {q.isPending && (
+        <p role="status" className="muted">
+          일정을 불러오고 있어요…
+        </p>
+      )}
       {form && (
         <Panel title={editing ? "내부 일정 수정" : "새 내부 일정"}>
           <form
@@ -195,22 +223,28 @@ export default function CalendarPage({ org }: { org?: Organization }) {
             <div key={"blank-" + i} />
           ))}
           {days.map((d) => {
-            const end = new Date(d);
-            end.setDate(end.getDate() + 1);
+            const entries = dayEntries(d);
             return (
               <div
                 className={
-                  "calendar-day " + (d.toDateString() === new Date().toDateString() ? "today" : "")
+                  "calendar-day " +
+                  (d.toDateString() === new Date().toDateString() ? "today " : "") +
+                  (d.toDateString() === selectedDay.toDateString() ? "selected" : "")
                 }
                 key={d.toISOString()}
               >
-                <small>{d.getDate()}</small>
-                {q.data
-                  ?.filter(
-                    (e) =>
-                      Date.parse(e.startsAt) < end.getTime() && Date.parse(e.endsAt) > d.getTime(),
-                  )
-                  .map((e) =>
+                <small className="desktop-day">{d.getDate()}</small>
+                <button
+                  className="mobile-day"
+                  aria-label={`${d.getMonth() + 1}월 ${d.getDate()}일, 일정 ${entries.length}개`}
+                  aria-pressed={d.toDateString() === selectedDay.toDateString()}
+                  onClick={() => setSelectedDay(d)}
+                >
+                  <span>{d.getDate()}</span>
+                  <span className="day-count">{entries.length ? `${entries.length}개` : ""}</span>
+                </button>
+                <div className="desktop-events">
+                  {entries.map((e) =>
                     e.path ? (
                       <Link key={e.key} to={e.path} className={e.type.toLowerCase()}>
                         {e.title}
@@ -230,13 +264,46 @@ export default function CalendarPage({ org }: { org?: Organization }) {
                       </button>
                     ),
                   )}
+                </div>
               </div>
             );
           })}
         </div>
       </Panel>
+      <section className="mobile-agenda card" aria-live="polite">
+        <h2>
+          {selectedDay.getMonth() + 1}월 {selectedDay.getDate()}일 일정{" "}
+          <span className="badge">{selectedEntries.length}개</span>
+        </h2>
+        {!q.isPending && !selectedEntries.length && <Empty>이 날은 예정된 일정이 없어요.</Empty>}
+        {selectedEntries.map((e) => (
+          <div className="list-row" key={e.key}>
+            <div>
+              {e.path ? (
+                <Link to={e.path}>
+                  <strong>{e.title} →</strong>
+                </Link>
+              ) : (
+                <strong>{e.title}</strong>
+              )}
+              <p className="meta">{date(e.startsAt)}</p>
+            </div>
+            {e.canManage && (
+              <button
+                className="secondary"
+                onClick={() => {
+                  setEditing(e);
+                  setForm(true);
+                }}
+              >
+                수정
+              </button>
+            )}
+          </div>
+        ))}
+      </section>
       <Panel title="기간 내 일정 목록">
-        {!q.data?.length && <Empty>이 기간의 일정이 없어요.</Empty>}
+        {!q.isPending && !q.error && !q.data?.length && <Empty>이 기간의 일정이 없어요.</Empty>}
         {q.data?.map((e) => (
           <div className="list-row" key={e.key}>
             <div>
