@@ -1,3 +1,4 @@
+import OrganizationWorkPanel from "./OrganizationWorkPanel";
 import NoticesPanel from "./NoticesPanel";
 import MembershipRequestsPanel from "./MembershipRequestsPanel";
 import { Link, useNavigate } from "react-router-dom";
@@ -223,6 +224,7 @@ export default function OrganizationPage({
           </button>
         </form>
       </Panel>
+      {org && <OrganizationWorkPanel key={org.id} org={org} />}
       {org && <MembershipRequestsPanel key={org.id} org={org} />}
       <ErrorMessage error={error} />
     </div>
