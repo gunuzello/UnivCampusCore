@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { NavLink, Routes, Route, Navigate } from "react-router-dom";
+import { NavLink, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Home, Compass, CalendarDays, Users, UserRound } from "./Icons";
 import { request, ApiError, type Profile, type Organization } from "./api";
 import AuthPage from "./AuthPage";
@@ -10,13 +10,23 @@ import { Panel, Empty, ErrorMessage, Action } from "./ui";
 import { ActivityList, ActivityCreate, ActivityDetail } from "./ActivityPages";
 import Dashboard from "./Dashboard";
 import CalendarPage from "./CalendarPage";
+import ScheduleDetail from "./ScheduleDetail";
 import ArchivePage from "./ArchivePage";
 import { MeetingList, MeetingDetail } from "./MeetingPages";
 import NotificationsPage from "./NotificationsPage";
+import RentalPage from "./RentalPage";
+import { TeamDetail } from "./TeamPages";
+import { ProgramDetail } from "./ProgramPages";
 import DiscoverPage from "./DiscoverPage";
 export default function App() {
   const query = useQueryClient();
   const [selected, setSelected] = useState<number>();
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const value = new URLSearchParams(location.search).get("org");
+    if (value && /^\d+$/.test(value) && Number(value) > 0) setSelected(Number(value));
+  }, [location.search]);
   const me = useQuery({ queryKey: ["me"], queryFn: () => request<Profile>("/me") });
   const organizations = useQuery({
     queryKey: ["organizations"],
@@ -54,6 +64,7 @@ export default function App() {
             ["/organization", "소속", Users],
             ["/events", "행사", Compass],
             ["/recruitments", "모집", Users],
+            ["/rentals", "대여사업", Users],
             ["/meetings", "회의", Users],
             ["/archive", "지난 활동", CalendarDays],
           ].map(([to, label, Icon]) => {
@@ -101,12 +112,16 @@ export default function App() {
             <p>함께 만들고, 다음으로 이어가요.</p>
           </div>
           <select
-            aria-label="학생회 선택"
+            aria-label="소속 선택"
             value={org?.id || ""}
-            onChange={(e) => setSelected(Number(e.target.value))}
+            onChange={(e) => {
+              const id = Number(e.target.value);
+              setSelected(id);
+              if (location.pathname === "/organization") navigate("/organization?org=" + id);
+            }}
           >
             <option value="" disabled>
-              학생회 선택
+              소속 선택
             </option>
             {organizations.data?.map((o) => (
               <option key={o.id} value={o.id}>
@@ -150,10 +165,14 @@ export default function App() {
               path="/organization"
               element={<OrganizationPage key={org?.id} org={org} onSelect={setSelected} />}
             />
+            <Route path="/rentals" element={<RentalPage key={org?.id} org={org} />} />
             <Route path="/profile" element={<ProfilePage user={user} />} />
-            <Route path="/discover" element={<DiscoverPage />} />
+            <Route path="/teams/:id" element={<TeamDetail />} />
+            <Route path="/programs/:id" element={<ProgramDetail />} />
+            <Route path="/discover" element={<DiscoverPage org={org} />} />
             <Route path="/calendar" element={<CalendarPage key={org?.id} org={org} />} />
             <Route path="/meetings" element={<MeetingList key={org?.id} org={org} />} />
+            <Route path="/schedules/:id" element={<ScheduleDetail />} />
             <Route path="/meetings/:id" element={<MeetingDetail />} />
             <Route path="/archive" element={<ArchivePage key={org?.id} org={org} />} />
             <Route path="/notifications" element={<NotificationsPage />} />

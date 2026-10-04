@@ -1,4 +1,8 @@
-import { Link } from "react-router-dom";
+import ClubDetailsPanel from "./ClubDetailsPanel";
+import OrganizationWorkPanel from "./OrganizationWorkPanel";
+import NoticesPanel from "./NoticesPanel";
+import MembershipRequestsPanel from "./MembershipRequestsPanel";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { request, type Organization, type Profile } from "./api";
@@ -12,6 +16,7 @@ export default function OrganizationPage({
   onSelect: (id: number) => void;
 }) {
   const query = useQueryClient();
+  const navigate = useNavigate();
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
   const members = useQuery({
@@ -28,6 +33,7 @@ export default function OrganizationPage({
       const o = await request<Organization>("/organizations", "POST", d);
       await query.invalidateQueries({ queryKey: ["organizations"] });
       onSelect(o.id);
+      navigate("/organization?org=" + o.id);
     } catch (e) {
       setError(e);
     } finally {
@@ -56,7 +62,9 @@ export default function OrganizationPage({
   return (
     <div className="columns">
       <div>
-        <Panel title="우리 학생회">
+        <Panel
+          title={org?.type === "CLUB" ? (org.role ? "내 동아리" : "동아리 소개") : "우리 학생회"}
+        >
           {org ? (
             <>
               <div className="toolbar">
@@ -65,6 +73,9 @@ export default function OrganizationPage({
                 </Link>
                 <Link className="secondary link-button" to="/recruitments">
                   모집
+                </Link>
+                <Link className="secondary link-button" to="/rentals">
+                  대여사업
                 </Link>
                 {org.role && (
                   <>
@@ -124,6 +135,8 @@ export default function OrganizationPage({
             <Empty>학생회를 만들거나 상단에서 선택해 주세요.</Empty>
           )}
         </Panel>
+        {org?.type === "CLUB" && <ClubDetailsPanel key={org.id} org={org} />}
+        {org && <NoticesPanel key={org.id} org={org} />}
         {org?.role && (
           <Panel title="함께하는 구성원">
             <ErrorMessage error={members.error} />
@@ -190,10 +203,16 @@ export default function OrganizationPage({
           </Panel>
         )}
       </div>
-      <Panel title="새 학생회 시작하기">
-        <p className="muted">조직을 만든 사용자가 첫 대표가 됩니다.</p>
+      <Panel title="새 소속 시작하기">
+        <p className="muted">학생회나 동아리를 만들면 첫 대표가 됩니다.</p>
         <form onSubmit={create}>
-          <Field label="학생회 이름">
+          <Field label="소속 유형">
+            <select name="type" defaultValue="STUDENT_COUNCIL">
+              <option value="STUDENT_COUNCIL">학생회</option>
+              <option value="CLUB">동아리</option>
+            </select>
+          </Field>
+          <Field label="소속 이름">
             <input name="name" required maxLength={120} placeholder="제16대 ITM 학생회" />
           </Field>
           <Field label="학과">
@@ -203,10 +222,12 @@ export default function OrganizationPage({
             <textarea name="description" maxLength={10000} />
           </Field>
           <button className="primary" disabled={busy}>
-            학생회 만들기
+            소속 만들기
           </button>
         </form>
       </Panel>
+      {org && <OrganizationWorkPanel key={org.id} org={org} />}
+      {org && <MembershipRequestsPanel key={org.id} org={org} />}
       <ErrorMessage error={error} />
     </div>
   );

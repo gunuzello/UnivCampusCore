@@ -1,7 +1,8 @@
+import { SaveButton } from "./PersonalPanel";
 import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { request, type Organization, type Profile } from "./api";
+import { request, download, type Organization, type Profile } from "./api";
 import LinksPanel from "./LinksPanel";
 import { Panel, Field, ErrorMessage, Empty, Action, Status, date, instant } from "./ui";
 export type Kind = "events" | "recruitments";
@@ -288,6 +289,8 @@ export function ActivityDetail({ kind, user }: { kind: Kind; user: Profile }) {
   const nav = useNavigate();
   const [editing, setEditing] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [applicantSearch, setApplicantSearch] = useState("");
+  const [applicantStatus, setApplicantStatus] = useState("");
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
   const orgs = useQuery({
@@ -317,6 +320,25 @@ export function ActivityDetail({ kind, user }: { kind: Kind; user: Profile }) {
   if (item.isPending) return <Empty>불러오는 중…</Empty>;
   if (item.error) return <ErrorMessage error={item.error} />;
   const a = item.data!;
+  const applicantLabels: Record<string, string> =
+    kind === "events"
+      ? { REGISTERED: "신청 완료", ATTENDED: "참가 완료", ABSENT: "불참", CANCELLED: "취소" }
+      : {
+          SUBMITTED: "접수",
+          REVIEWING: "검토 중",
+          ACCEPTED: "합격",
+          REJECTED: "불합격",
+          CANCELLED: "취소",
+        };
+  const search = applicantSearch.trim().toLowerCase();
+  const filteredApplicants = applicants.data?.filter(
+    (p) =>
+      (!applicantStatus || p.status === applicantStatus) &&
+      [p.name, p.email, p.department, p.studentNumber].some((value) =>
+        (value || "").toLowerCase().includes(search),
+      ),
+  );
+
   const closed = !(
     a.status === "PUBLISHED" &&
     Date.now() >= Date.parse(a.opensAt) &&
@@ -334,6 +356,7 @@ export function ActivityDetail({ kind, user }: { kind: Kind; user: Profile }) {
       </div>
       <div className="page-heading">
         <h1>{a.title}</h1>
+        <SaveButton type={kind === "events" ? "EVENT" : "RECRUITMENT"} id={a.id} />
         <p>
           {kind === "events" && a.startsAt
             ? date(a.startsAt) + " · " + a.location
@@ -445,8 +468,81 @@ export function ActivityDetail({ kind, user }: { kind: Kind; user: Profile }) {
           {a.canManage && (
             <Panel title={kind === "events" ? "신청자 관리" : "지원자 관리"}>
               <ErrorMessage error={applicants.error} />
-              {!applicants.data?.length && <Empty>아직 신청자가 없어요.</Empty>}
-              {applicants.data?.map((p) => (
+              <div className="applicant-filters">
+                <Field label="신청자 검색">
+                  <input
+                    type="search"
+                    maxLength={200}
+                    value={applicantSearch}
+                    placeholder="이름 · 이메일 · 학과 · 학번"
+                    onChange={(e) => setApplicantSearch(e.target.value)}
+                  />
+                </Field>
+                <Field label="신청 상태">
+                  <select
+                    value={applicantStatus}
+                    onChange={(e) => setApplicantStatus(e.target.value)}
+                  >
+                    <option value="">전체 상태</option>
+                    {Object.entries(applicantLabels).map(([value, name]) => (
+                      <option key={value} value={value}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+              {applicants.data && (
+                <>
+                  <div className="toolbar">
+                    <span className="meta" role="status">
+                      전체 {applicants.data.length}명 · 검색 결과 {filteredApplicants?.length || 0}
+                      명
+                    </span>
+                    <Action
+                      label="명단 CSV 다운로드"
+                      onAction={() =>
+                        download(
+                          "/" +
+                            kind +
+                            "/" +
+                            id +
+                            "/applications/export?" +
+                            new URLSearchParams({
+                              search: applicantSearch,
+                              status: applicantStatus,
+                            }),
+                          kind + "-" + id + "-applicants.csv",
+                        )
+                      }
+                    />
+                    {(applicantSearch || applicantStatus) && (
+                      <button
+                        className="text-button"
+                        onClick={() => {
+                          setApplicantSearch("");
+                          setApplicantStatus("");
+                        }}
+                      >
+                        필터 초기화
+                      </button>
+                    )}
+                  </div>
+                  <p className="meta">
+                    현재 검색·상태 필터에 맞는 명단과 질문 답변을 내려받아요. 취소한 신청은 취소
+                    필터에서 확인할 수 있어요.
+                  </p>
+                </>
+              )}
+              {applicants.isPending && <p className="muted">명단을 불러오고 있어요…</p>}
+              {applicants.data && !filteredApplicants?.length && (
+                <Empty>
+                  {applicants.data.length
+                    ? "검색 조건에 맞는 신청자가 없어요."
+                    : "아직 신청자가 없어요."}
+                </Empty>
+              )}
+              {filteredApplicants?.map((p) => (
                 <details key={p.id} className="applicant">
                   <summary>
                     <span>

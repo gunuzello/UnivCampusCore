@@ -35,7 +35,8 @@ public class OrganizationController {
   public record Input(
     @NotBlank @Size(max = 120) String name,
     @Size(max = 120) String department,
-    @Size(max = 10000) String description
+    @Size(max = 10000) String description,
+    Organization.Type type
   ) {}
 
   public record MemberInput(@NotBlank @Email String email, @NotNull Membership.Role role) {}
@@ -47,7 +48,8 @@ public class OrganizationController {
     String name,
     String department,
     String description,
-    Membership.Role role
+    Membership.Role role,
+    Organization.Type type
   ) {}
 
   public record MemberView(Long id, User.Profile user, Membership.Role role) {}
@@ -61,7 +63,8 @@ public class OrganizationController {
       memberships
         .findByOrganizationIdAndUserId(o.id, user)
         .map(m -> m.role)
-        .orElse(null)
+        .orElse(null),
+      o.type
     );
   }
 
@@ -83,7 +86,9 @@ public class OrganizationController {
   @Transactional
   @ResponseStatus(HttpStatus.CREATED)
   View create(@Valid @RequestBody Input d, Authentication a) {
-    var o = organizations.save(new Organization(d.name(), d.department(), d.description()));
+    var entity = new Organization(d.name(), d.department(), d.description());
+    if (d.type() != null) entity.type = d.type();
+    var o = organizations.save(entity);
     memberships.save(new Membership(o.id, CurrentUser.id(a), Membership.Role.LEADER));
     return view(o, CurrentUser.id(a));
   }
@@ -93,6 +98,10 @@ public class OrganizationController {
   View update(@PathVariable Long id, @Valid @RequestBody Input d, Authentication a) {
     access.staff(id, CurrentUser.id(a));
     var o = organizations.findById(id).orElseThrow(ApiException::missing);
+    if (d.type() != null && d.type() != o.type) throw ApiException.bad(
+      "TYPE_IMMUTABLE",
+      "소속 유형은 생성 후 변경할 수 없습니다."
+    );
     o.name = d.name();
     o.department = d.department();
     o.description = d.description();

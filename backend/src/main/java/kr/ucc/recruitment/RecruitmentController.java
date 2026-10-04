@@ -83,6 +83,15 @@ public class RecruitmentController {
     return service.applicants(id, CurrentUser.id(a));
   }
 
+  @GetMapping("/recruitments/{id}/applications/{applicationId}")
+  RecruitmentService.ApplicationView application(
+    @PathVariable Long id,
+    @PathVariable Long applicationId,
+    Authentication a
+  ) {
+    return service.application(id, applicationId, CurrentUser.id(a));
+  }
+
   @PatchMapping("/recruitments/{id}/applications/{applicationId}")
   RecruitmentService.ApplicationView result(
     @PathVariable Long id,

@@ -15,15 +15,18 @@ public class MeetingService {
   private final MeetingRepository meetings;
   private final OrganizationAccess access;
   private final MembershipRepository memberships;
+  private final MeetingResponseRepository responses;
 
   public MeetingService(
     MeetingRepository meetings,
     OrganizationAccess access,
-    MembershipRepository memberships
+    MembershipRepository memberships,
+    MeetingResponseRepository responses
   ) {
     this.meetings = meetings;
     this.access = access;
     this.memberships = memberships;
+    this.responses = responses;
   }
 
   public record Input(
@@ -108,8 +111,11 @@ public class MeetingService {
   }
 
   public View update(Long id, Long user, Input d) {
-    var m = meetings.findById(id).orElseThrow(ApiException::missing);
+    var m = meetings.lockById(id).orElseThrow(ApiException::missing);
     access.staff(m.organizationId, user);
+    if (!m.startsAt.equals(d.startsAt())) responses.deleteByMeetingId(id);
+    else for (Long attendee : m.attendees)
+      if (!d.attendees().contains(attendee)) responses.deleteByMeetingIdAndUserId(id, attendee);
     set(m, d);
     return view(m, user);
   }

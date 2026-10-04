@@ -693,3 +693,30 @@ aside .aside-bottom {
     font-size: 12px;
   }
 }
+
+.applicant-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 16px;
+}
+.applicant-filters input,
+.applicant-filters select {
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 700px) {
+  .applicant-filters {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+.calendar-grid a.saved {
+  border-style: dashed;
+}
+.calendar-grid a.program {
+  border-color: #8fa8c8;
+}
+.calendar-grid a.team {
+  border-color: #a08ab8;
+}

@@ -7,6 +7,7 @@ import kr.ucc.event.*;
 import kr.ucc.meeting.*;
 import kr.ucc.organization.*;
 import kr.ucc.recruitment.*;
+import kr.ucc.rental.RentalService;
 import kr.ucc.schedule.*;
 import kr.ucc.user.*;
 import org.springframework.boot.ApplicationArguments;
@@ -31,6 +32,7 @@ public class LocalDemoData implements ApplicationRunner {
   private final ScheduleRepository schedules;
   private final HandoverNoteRepository notes;
   private final ExternalLinkRepository links;
+  private final RentalService rentals;
 
   public LocalDemoData(
     UserRepository users,
@@ -42,7 +44,8 @@ public class LocalDemoData implements ApplicationRunner {
     MeetingService meetings,
     ScheduleRepository schedules,
     HandoverNoteRepository notes,
-    ExternalLinkRepository links
+    ExternalLinkRepository links,
+    RentalService rentals
   ) {
     this.users = users;
     this.organizations = organizations;
@@ -54,6 +57,7 @@ public class LocalDemoData implements ApplicationRunner {
     this.schedules = schedules;
     this.notes = notes;
     this.links = links;
+    this.rentals = rentals;
   }
 
   @Override
@@ -184,6 +188,16 @@ public class LocalDemoData implements ApplicationRunner {
         now.plusSeconds(86400 * 2 + 3600),
         "운영진이 학생회실에서 준비해요."
       )
+    );
+    rentals.create(
+      org.id,
+      leader.id,
+      new RentalService.Input("우산", "비 오는 날 빌려 쓰는 학생회 우산", 5, 7, true)
+    );
+    rentals.create(
+      org.id,
+      leader.id,
+      new RentalService.Input("C타입 충전기", "학생회실에서 수령하고 반납해 주세요.", 3, 3, true)
     );
     var note = notes.save(
       new HandoverNote(
