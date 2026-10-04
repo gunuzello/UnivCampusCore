@@ -14,6 +14,22 @@ export default function Dashboard({ user, org }: { user: Profile; org?: Organiza
     queryFn: () => request<Activity[]>("/organizations/" + org!.id + "/recruitments"),
     enabled: !!org,
   });
+  const today = new Date();
+  const from = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+  const to = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7).toISOString();
+  const calendar = useQuery({
+    queryKey: ["calendar", org?.id, "home", from],
+    queryFn: () =>
+      request<{ key: string; title: string; startsAt: string; path: string }[]>(
+        "/organizations/" +
+          org!.id +
+          "/calendar?from=" +
+          encodeURIComponent(from) +
+          "&to=" +
+          encodeURIComponent(to),
+      ),
+    enabled: !!org,
+  });
   return (
     <>
       <div className="page-heading">
@@ -50,6 +66,19 @@ export default function Dashboard({ user, org }: { user: Profile; org?: Organiza
               <p className="meta">다음 구성원을 기다려요</p>
             </Panel>
           </div>
+          <Panel title="이번 주 일정">
+            <ErrorMessage error={calendar.error} />
+            {!calendar.data?.length && <Empty>이번 주에 예정된 일정이 없어요.</Empty>}
+            {calendar.data?.slice(0, 5).map((item) => (
+              <Link key={item.key} to={item.path} className="list-row">
+                <strong>{item.title}</strong>
+                <span className="meta">{date(item.startsAt)}</span>
+              </Link>
+            ))}
+            <Link to="/calendar" className="meta">
+              캘린더 전체 보기 →
+            </Link>
+          </Panel>
           {[
             ["events", "학생회 행사", events],
             ["recruitments", "신입부원 모집", recruits],

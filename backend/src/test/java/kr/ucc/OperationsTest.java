@@ -125,6 +125,57 @@ class OperationsTest {
   }
 
   @Test
+  void pastSchedulesHavePrivateDetailsAndArchiveLinks() throws Exception {
+    var now = Instant.now();
+    var result = mvc
+      .perform(
+        post("/api/v1/organizations/" + org + "/schedules")
+          .with(user(leader.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content(
+            body(
+              Map.of(
+                "title",
+                "지난 운영 일정",
+                "startsAt",
+                now.minusSeconds(7200),
+                "endsAt",
+                now.minusSeconds(3600),
+                "description",
+                "운영 기록"
+              )
+            )
+          )
+      )
+      .andExpect(status().isOk())
+      .andReturn();
+    String id = json.readTree(result.getResponse().getContentAsString()).get("id").asText();
+    mvc
+      .perform(get("/api/v1/schedules/" + id).with(user(student.toString())))
+      .andExpect(status().isForbidden());
+    mvc
+      .perform(get("/api/v1/schedules/" + id).with(user(leader.toString())))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("schedule.path").value("/schedules/" + id));
+    mvc
+      .perform(get("/api/v1/organizations/" + org + "/archive").with(user(leader.toString())))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[0].type").value("SCHEDULE"));
+    mvc
+      .perform(
+        post("/api/v1/organizations/" + org + "/links")
+          .param("type", "SCHEDULE")
+          .param("targetId", id)
+          .with(user(leader.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content(body(Map.of("title", "자료", "url", "https://example.com", "description", "")))
+      )
+      .andExpect(status().isOk());
+  }
+
+  @Test
   void notesAndLinksRejectUnsafeUrlsAndCrossOrganizationTargets() throws Exception {
     var result = mvc
       .perform(

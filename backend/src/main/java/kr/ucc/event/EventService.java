@@ -300,6 +300,15 @@ public class EventService {
       .toList();
   }
 
+  @Transactional(readOnly = true)
+  public ApplicationView application(Long id, Long applicationId, Long user) {
+    var item = visible(id, user);
+    access.staff(item.organizationId, user);
+    var application = applications.findById(applicationId).orElseThrow(ApiException::missing);
+    if (!application.eventId.equals(id)) throw ApiException.missing();
+    return applicationView(application);
+  }
+
   public ApplicationView result(Long id, Long applicationId, Long user, ApplicationStatus d) {
     var e = repository.lockById(id).orElseThrow(ApiException::missing);
     access.staff(e.organizationId, user);

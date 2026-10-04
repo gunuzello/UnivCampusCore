@@ -155,6 +155,8 @@ export function MeetingList({ org }: { org?: Organization }) {
             orgId={org.id}
             onDone={async (m) => {
               await query.invalidateQueries({ queryKey: ["meetings"] });
+              await query.invalidateQueries({ queryKey: ["calendar"] });
+              await query.invalidateQueries({ queryKey: ["archive"] });
               nav("/meetings/" + m.id);
             }}
           />
@@ -220,6 +222,8 @@ export function MeetingDetail() {
             onDone={async () => {
               setEditing(false);
               await query.invalidateQueries({ queryKey: ["meetings"] });
+              await query.invalidateQueries({ queryKey: ["calendar"] });
+              await query.invalidateQueries({ queryKey: ["archive"] });
               await query.invalidateQueries({ queryKey: ["calendar"] });
             }}
           />

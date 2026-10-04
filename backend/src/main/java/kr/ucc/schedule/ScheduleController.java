@@ -68,7 +68,7 @@ public class ScheduleController {
       s.startsAt,
       s.endsAt,
       s.description,
-      null,
+      "/schedules/" + s.id,
       manage
     );
   }
@@ -163,6 +163,16 @@ public class ScheduleController {
     s.organizationId = org;
     set(s, d);
     return view(schedules.save(s), true);
+  }
+
+  public record Detail(View schedule, Long organizationId) {}
+
+  @GetMapping("/schedules/{id}")
+  @Transactional(readOnly = true)
+  Detail get(@PathVariable Long id, Authentication a) {
+    var s = schedules.findById(id).orElseThrow(ApiException::missing);
+    var member = access.member(s.organizationId, CurrentUser.id(a));
+    return new Detail(view(s, member.role != Membership.Role.MEMBER), s.organizationId);
   }
 
   @PatchMapping("/schedules/{id}")

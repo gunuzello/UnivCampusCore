@@ -139,6 +139,8 @@ export default function CalendarPage({ org }: { org?: Organization }) {
                 setForm(false);
                 setEditing(undefined);
                 await query.invalidateQueries({ queryKey: ["calendar"] });
+                await query.invalidateQueries({ queryKey: ["archive"] });
+                await query.invalidateQueries({ queryKey: ["schedule"] });
               } catch (e) {
                 setError(e);
               } finally {
@@ -270,6 +272,8 @@ export default function CalendarPage({ org }: { org?: Organization }) {
                     if (!confirm("내부 일정을 삭제할까요?")) return;
                     await request("/schedules/" + e.id, "DELETE");
                     await query.invalidateQueries({ queryKey: ["calendar"] });
+                    await query.invalidateQueries({ queryKey: ["archive"] });
+                    await query.invalidateQueries({ queryKey: ["schedule"] });
                   }}
                 />
               </div>

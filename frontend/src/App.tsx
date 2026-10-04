@@ -10,6 +10,7 @@ import { Panel, Empty, ErrorMessage, Action } from "./ui";
 import { ActivityList, ActivityCreate, ActivityDetail } from "./ActivityPages";
 import Dashboard from "./Dashboard";
 import CalendarPage from "./CalendarPage";
+import ScheduleDetail from "./ScheduleDetail";
 import ArchivePage from "./ArchivePage";
 import { MeetingList, MeetingDetail } from "./MeetingPages";
 import NotificationsPage from "./NotificationsPage";
@@ -154,6 +155,7 @@ export default function App() {
             <Route path="/discover" element={<DiscoverPage />} />
             <Route path="/calendar" element={<CalendarPage key={org?.id} org={org} />} />
             <Route path="/meetings" element={<MeetingList key={org?.id} org={org} />} />
+            <Route path="/schedules/:id" element={<ScheduleDetail />} />
             <Route path="/meetings/:id" element={<MeetingDetail />} />
             <Route path="/archive" element={<ArchivePage key={org?.id} org={org} />} />
             <Route path="/notifications" element={<NotificationsPage />} />

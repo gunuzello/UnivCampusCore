@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { request, type Profile } from "./api";
-import { Panel, Field, ErrorMessage, Empty, Status, date } from "./ui";
+import { Panel, Field, ErrorMessage, Empty, Status, date, Action } from "./ui";
 export default function ProfilePage({ user }: { user: Profile }) {
   const query = useQueryClient();
   const [error, setError] = useState<unknown>();
@@ -52,6 +52,16 @@ export default function ProfilePage({ user }: { user: Profile }) {
           {saved && <p role="status">저장했어요.</p>}
           <button className="primary">프로필 저장</button>
         </form>
+      </Panel>
+      <Panel title="계정">
+        <Action
+          label="로그아웃"
+          onAction={async () => {
+            await request("/auth/logout", "POST");
+            query.removeQueries({ predicate: (q) => q.queryKey[0] !== "me" });
+            await query.resetQueries({ queryKey: ["me"] });
+          }}
+        />
       </Panel>
       <Panel title="내 신청과 지원">
         <ErrorMessage error={applications.error} />
