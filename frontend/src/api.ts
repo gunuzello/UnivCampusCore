@@ -6,6 +6,7 @@ export type Profile = {
   studentNumber: string;
 };
 export type Organization = {
+  type: "STUDENT_COUNCIL" | "CLUB";
   id: number;
   name: string;
   department: string;

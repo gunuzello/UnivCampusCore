@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { NavLink, Routes, Route, Navigate } from "react-router-dom";
+import { NavLink, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Home, Compass, CalendarDays, Users, UserRound } from "./Icons";
 import { request, ApiError, type Profile, type Organization } from "./api";
 import AuthPage from "./AuthPage";
@@ -19,6 +19,12 @@ import DiscoverPage from "./DiscoverPage";
 export default function App() {
   const query = useQueryClient();
   const [selected, setSelected] = useState<number>();
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const value = new URLSearchParams(location.search).get("org");
+    if (value && /^\d+$/.test(value) && Number(value) > 0) setSelected(Number(value));
+  }, [location.search]);
   const me = useQuery({ queryKey: ["me"], queryFn: () => request<Profile>("/me") });
   const organizations = useQuery({
     queryKey: ["organizations"],
@@ -104,12 +110,16 @@ export default function App() {
             <p>함께 만들고, 다음으로 이어가요.</p>
           </div>
           <select
-            aria-label="학생회 선택"
+            aria-label="소속 선택"
             value={org?.id || ""}
-            onChange={(e) => setSelected(Number(e.target.value))}
+            onChange={(e) => {
+              const id = Number(e.target.value);
+              setSelected(id);
+              if (location.pathname === "/organization") navigate("/organization?org=" + id);
+            }}
           >
             <option value="" disabled>
-              학생회 선택
+              소속 선택
             </option>
             {organizations.data?.map((o) => (
               <option key={o.id} value={o.id}>

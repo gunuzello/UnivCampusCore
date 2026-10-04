@@ -117,7 +117,9 @@ export default function Dashboard({ user, org }: { user: Profile; org?: Organiza
         <span className="badge">AI FIND · 준비 중</span>
       </div>
       <Panel title="캠퍼스의 더 많은 가능성">
-        <p className="muted">프로그램 추천, 팀 구하기, 동아리 탐색은 다음 버전에서 만나요.</p>
+        <p className="muted">
+          프로그램 추천과 팀 구하기는 준비 중이에요. 동아리는 찾기에서 탐색하고 가입할 수 있어요.
+        </p>
         <Link className="meta" to="/discover">
           찾기에서 보기 →
         </Link>

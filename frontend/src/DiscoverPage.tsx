@@ -1,3 +1,4 @@
+import ClubList from "./ClubList";
 import { useState } from "react";
 import { Panel } from "./ui";
 export default function DiscoverPage() {
@@ -55,34 +56,40 @@ export default function DiscoverPage() {
           </button>
         ))}
       </div>
-      <div className="notice">
-        <strong>준비 중인 화면이에요.</strong>
-        <p>
-          아래 카드는 기존 프로토타입의 예시이며 실제 모집 공고가 아니에요. 학생회 행사와 모집은 홈
-          또는 소속에서 이용할 수 있어요.
-        </p>
-      </div>
-      <div className="section-title">
-        <h2>
-          {tab === "프로그램"
-            ? "나한테 맞는 기회"
-            : tab === "팀 구하기"
-              ? "나한테 맞는 팀"
-              : "함께할 동아리"}
-        </h2>
-        <span className="badge">Demo UI</span>
-      </div>
-      <div className="grid">
-        {examples[tab].map((e) => (
-          <Panel key={e.title} title={e.title}>
-            <span className="badge">{e.tag}</span>
-            <p className="muted">{e.description}</p>
-            <button disabled className="secondary">
-              준비 중
-            </button>
-          </Panel>
-        ))}
-      </div>
+      {tab === "동아리" ? (
+        <ClubList />
+      ) : (
+        <>
+          <div className="notice">
+            <strong>준비 중인 화면이에요.</strong>
+            <p>
+              아래 카드는 기존 프로토타입의 예시이며 실제 모집 공고가 아니에요. 학생회 행사와 모집은
+              홈 또는 소속에서 이용할 수 있어요.
+            </p>
+          </div>
+          <div className="section-title">
+            <h2>
+              {tab === "프로그램"
+                ? "나한테 맞는 기회"
+                : tab === "팀 구하기"
+                  ? "나한테 맞는 팀"
+                  : "함께할 동아리"}
+            </h2>
+            <span className="badge">Demo UI</span>
+          </div>
+          <div className="grid">
+            {examples[tab].map((e) => (
+              <Panel key={e.title} title={e.title}>
+                <span className="badge">{e.tag}</span>
+                <p className="muted">{e.description}</p>
+                <button disabled className="secondary">
+                  준비 중
+                </button>
+              </Panel>
+            ))}
+          </div>
+        </>
+      )}
     </>
   );
 }

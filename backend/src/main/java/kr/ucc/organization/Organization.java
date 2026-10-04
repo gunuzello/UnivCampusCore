@@ -6,6 +6,15 @@ import jakarta.persistence.*;
 @Table(name = "organizations")
 public class Organization {
 
+  public enum Type {
+    STUDENT_COUNCIL,
+    CLUB,
+  }
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  public Type type = Type.STUDENT_COUNCIL;
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   public Long id;
