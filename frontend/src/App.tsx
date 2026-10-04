@@ -15,6 +15,7 @@ import ArchivePage from "./ArchivePage";
 import { MeetingList, MeetingDetail } from "./MeetingPages";
 import NotificationsPage from "./NotificationsPage";
 import RentalPage from "./RentalPage";
+import { TeamDetail } from "./TeamPages";
 import { ProgramDetail } from "./ProgramPages";
 import DiscoverPage from "./DiscoverPage";
 export default function App() {
@@ -166,6 +167,7 @@ export default function App() {
             />
             <Route path="/rentals" element={<RentalPage key={org?.id} org={org} />} />
             <Route path="/profile" element={<ProfilePage user={user} />} />
+            <Route path="/teams/:id" element={<TeamDetail />} />
             <Route path="/programs/:id" element={<ProgramDetail />} />
             <Route path="/discover" element={<DiscoverPage org={org} />} />
             <Route path="/calendar" element={<CalendarPage key={org?.id} org={org} />} />

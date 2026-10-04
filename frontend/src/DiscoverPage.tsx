@@ -1,3 +1,4 @@
+import { TeamList } from "./TeamPages";
 import { ProgramList } from "./ProgramPages";
 import type { Organization } from "./api";
 import ClubList from "./ClubList";
@@ -58,7 +59,9 @@ export default function DiscoverPage({ org }: { org?: Organization }) {
           </button>
         ))}
       </div>
-      {tab === "프로그램" ? (
+      {tab === "팀 구하기" ? (
+        <TeamList />
+      ) : tab === "프로그램" ? (
         <ProgramList key={org?.id} org={org} />
       ) : tab === "동아리" ? (
         <ClubList />
