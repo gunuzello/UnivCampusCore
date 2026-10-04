@@ -66,6 +66,9 @@ export default function OrganizationPage({
                 <Link className="secondary link-button" to="/recruitments">
                   모집
                 </Link>
+                <Link className="secondary link-button" to="/rentals">
+                  대여사업
+                </Link>
                 {org.role && (
                   <>
                     <Link className="secondary link-button" to="/meetings">

@@ -14,6 +14,7 @@ import ScheduleDetail from "./ScheduleDetail";
 import ArchivePage from "./ArchivePage";
 import { MeetingList, MeetingDetail } from "./MeetingPages";
 import NotificationsPage from "./NotificationsPage";
+import RentalPage from "./RentalPage";
 import DiscoverPage from "./DiscoverPage";
 export default function App() {
   const query = useQueryClient();
@@ -55,6 +56,7 @@ export default function App() {
             ["/organization", "소속", Users],
             ["/events", "행사", Compass],
             ["/recruitments", "모집", Users],
+            ["/rentals", "대여사업", Users],
             ["/meetings", "회의", Users],
             ["/archive", "지난 활동", CalendarDays],
           ].map(([to, label, Icon]) => {
@@ -151,6 +153,7 @@ export default function App() {
               path="/organization"
               element={<OrganizationPage key={org?.id} org={org} onSelect={setSelected} />}
             />
+            <Route path="/rentals" element={<RentalPage key={org?.id} org={org} />} />
             <Route path="/profile" element={<ProfilePage user={user} />} />
             <Route path="/discover" element={<DiscoverPage />} />
             <Route path="/calendar" element={<CalendarPage key={org?.id} org={org} />} />

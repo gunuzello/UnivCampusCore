@@ -61,6 +61,9 @@ export function Action({
 }
 export function Status({ value }: { value: string }) {
   const labels: Record<string, string> = {
+    REQUESTED: "수령 대기",
+    BORROWED: "대여 중",
+    RETURNED: "반납 완료",
     DRAFT: "작성 중",
     PUBLISHED: "공개",
     CLOSED: "마감",
