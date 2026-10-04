@@ -1,7 +1,9 @@
+import { ProgramList } from "./ProgramPages";
+import type { Organization } from "./api";
 import ClubList from "./ClubList";
 import { useState } from "react";
 import { Panel } from "./ui";
-export default function DiscoverPage() {
+export default function DiscoverPage({ org }: { org?: Organization }) {
   const [tab, setTab] = useState("프로그램");
   const examples: Record<string, { title: string; description: string; tag: string }[]> = {
     프로그램: [
@@ -56,7 +58,9 @@ export default function DiscoverPage() {
           </button>
         ))}
       </div>
-      {tab === "동아리" ? (
+      {tab === "프로그램" ? (
+        <ProgramList key={org?.id} org={org} />
+      ) : tab === "동아리" ? (
         <ClubList />
       ) : (
         <>

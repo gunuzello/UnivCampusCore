@@ -15,6 +15,7 @@ import ArchivePage from "./ArchivePage";
 import { MeetingList, MeetingDetail } from "./MeetingPages";
 import NotificationsPage from "./NotificationsPage";
 import RentalPage from "./RentalPage";
+import { ProgramDetail } from "./ProgramPages";
 import DiscoverPage from "./DiscoverPage";
 export default function App() {
   const query = useQueryClient();
@@ -165,7 +166,8 @@ export default function App() {
             />
             <Route path="/rentals" element={<RentalPage key={org?.id} org={org} />} />
             <Route path="/profile" element={<ProfilePage user={user} />} />
-            <Route path="/discover" element={<DiscoverPage />} />
+            <Route path="/programs/:id" element={<ProgramDetail />} />
+            <Route path="/discover" element={<DiscoverPage org={org} />} />
             <Route path="/calendar" element={<CalendarPage key={org?.id} org={org} />} />
             <Route path="/meetings" element={<MeetingList key={org?.id} org={org} />} />
             <Route path="/schedules/:id" element={<ScheduleDetail />} />
