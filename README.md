@@ -57,6 +57,7 @@ npm run dev
 
 - 회원가입, 로그인, 로그아웃, 프로필 조회·수정.
 - 학생회·동아리 조직 유형, 동아리 탐색·검색, 가입 신청·취소·대표 승인과 처리 알림.
+- 소속 소식 작성·수정, 구성원 전용/전체 로그인 사용자 공개 범위와 새 소식 알림.
 - 조직 생성·수정, 구성원 추가·제거, MEMBER/STAFF/LEADER 역할 변경, 마지막 대표 보호.
 - 행사 초안·수정·공개·마감·취소·완료, 정원 관리, 추가 질문, 신청·취소·참가 상태 관리, 지난 행사 복제.
 - 모집 공고·질문 구성·공개·마감·취소, 지원서 제출·취소, 운영진 검토·합격·불합격 처리.
@@ -82,7 +83,7 @@ GitHub Actions에도 PostgreSQL 기반 백엔드 테스트와 프론트엔드 �
 
 - Frontend: TypeScript, React, Vite, React Router, TanStack Query.
 - Backend: Java 17 호환, Spring Boot 3.5.5, JPA, Spring Security, OpenAPI.
-- Database: PostgreSQL 16, Flyway V1–V7 마이그레이션.
+- Database: PostgreSQL 16, Flyway V1–V8 마이그레이션.
 - Architecture: 도메인별 패키지를 둔 단일 Spring Boot 애플리케이션.
 - 인증: HttpOnly 세션 쿠키 + CSRF 토큰. 웹은 Vite 프록시로 같은 출처에서 API를 호출한다.
 

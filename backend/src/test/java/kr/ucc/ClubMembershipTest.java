@@ -72,6 +72,108 @@ class ClubMembershipTest {
   }
 
   @Test
+  void noticesRespectPublicAndMemberVisibility() throws Exception {
+    String path = "/api/v1/organizations/" + org + "/notices";
+    mvc
+      .perform(
+        post(path)
+          .with(user(staff.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content(
+            "{\"title\":\"합주 안내\",\"content\":\"구성원만 보는 장소 안내\",\"visibility\":\"MEMBERS\"}"
+          )
+      )
+      .andExpect(status().isOk());
+    mvc
+      .perform(get(path).with(user(student.toString())))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.length()").value(0));
+    mvc
+      .perform(get(path).with(user(leader.toString())))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.length()").value(1));
+    var result = mvc
+      .perform(
+        post(path)
+          .with(user(leader.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content(
+            "{\"title\":\"동아리 소개\",\"content\":\"누구나 가입 신청할 수 있어요\",\"visibility\":\"PUBLIC\"}"
+          )
+      )
+      .andExpect(status().isOk())
+      .andReturn();
+    Long id = json.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+    mvc
+      .perform(get(path).with(user(student.toString())))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.length()").value(1));
+    mvc
+      .perform(
+        patch(path + "/" + id)
+          .with(user(leader.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content(
+            "{\"title\":\"동아리 소개\",\"content\":\"내부 안내로 전환\",\"visibility\":\"MEMBERS\"}"
+          )
+      )
+      .andExpect(status().isOk());
+    mvc
+      .perform(get(path).with(user(student.toString())))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.length()").value(0));
+  }
+
+  @Test
+  void noticeWritesRejectStudentsAndOtherOrganizations() throws Exception {
+    String path = "/api/v1/organizations/" + org + "/notices";
+    String input = "{\"title\":\"안내\",\"content\":\"공지 내용\",\"visibility\":\"MEMBERS\"}";
+    mvc
+      .perform(
+        post(path)
+          .with(user(student.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content(input)
+      )
+      .andExpect(status().isForbidden());
+    mvc
+      .perform(
+        post(path)
+          .with(user(leader.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content("{}")
+      )
+      .andExpect(status().isBadRequest());
+    var result = mvc
+      .perform(
+        post(path)
+          .with(user(leader.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content(input)
+      )
+      .andExpect(status().isOk())
+      .andReturn();
+    Long id = json.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+    var other = organizations.save(new Organization("다른 동아리", null, null));
+    memberships.save(new Membership(other.id, leader, Membership.Role.LEADER));
+    mvc
+      .perform(
+        patch("/api/v1/organizations/" + other.id + "/notices/" + id)
+          .with(user(leader.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content(input)
+      )
+      .andExpect(status().isNotFound());
+  }
+
+  @Test
   void createClubAndPreserveExistingStudentCouncilDefault() throws Exception {
     mvc
       .perform(

@@ -35,7 +35,7 @@ signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
 try:
     subprocess.run(['docker', 'compose', 'up', '-d', '--wait'], cwd=root, check=True)
     subprocess.run(['npm', 'ci'], cwd=root / 'frontend', check=True)
-    children.append(subprocess.Popen(['./mvnw', '-q', 'spring-boot:run', '-Dspring-boot.run.profiles=local'], cwd=root / 'backend', start_new_session=True))
+    children.append(subprocess.Popen(['./mvnw', '-q', 'clean', 'spring-boot:run', '-Dspring-boot.run.profiles=local'], cwd=root / 'backend', start_new_session=True))
     deadline = time.monotonic() + 120
     while True:
         if children[0].poll() is not None:

@@ -1,3 +1,4 @@
+import NoticesPanel from "./NoticesPanel";
 import MembershipRequestsPanel from "./MembershipRequestsPanel";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, type FormEvent } from "react";
@@ -59,7 +60,9 @@ export default function OrganizationPage({
   return (
     <div className="columns">
       <div>
-        <Panel title={org?.type === "CLUB" ? "내 동아리" : "우리 학생회"}>
+        <Panel
+          title={org?.type === "CLUB" ? (org.role ? "내 동아리" : "동아리 소개") : "우리 학생회"}
+        >
           {org ? (
             <>
               <div className="toolbar">
@@ -130,6 +133,7 @@ export default function OrganizationPage({
             <Empty>학생회를 만들거나 상단에서 선택해 주세요.</Empty>
           )}
         </Panel>
+        {org && <NoticesPanel key={org.id} org={org} />}
         {org?.role && (
           <Panel title="함께하는 구성원">
             <ErrorMessage error={members.error} />
@@ -219,7 +223,7 @@ export default function OrganizationPage({
           </button>
         </form>
       </Panel>
-      {org && <MembershipRequestsPanel org={org} />}
+      {org && <MembershipRequestsPanel key={org.id} org={org} />}
       <ErrorMessage error={error} />
     </div>
   );
