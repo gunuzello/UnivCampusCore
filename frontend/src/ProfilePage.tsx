@@ -1,0 +1,5 @@
+import {useState} from 'react';
+import {useQueryClient} from '@tanstack/react-query';
+import {request,type Profile} from './api';
+import {Panel,Field,ErrorMessage} from './ui';
+export default function ProfilePage({user}:{user:Profile}){const query=useQueryClient();const [error,setError]=useState<unknown>();const [saved,setSaved]=useState(false);return <Panel title="내 기본 정보"><p className="muted">{user.email}</p><form onSubmit={async e=>{e.preventDefault();setError(undefined);setSaved(false);try{await request('/me','PATCH',Object.fromEntries(new FormData(e.currentTarget)));await query.invalidateQueries({queryKey:['me']});setSaved(true)}catch(e){setError(e)}}}><Field label="이름"><input name="name" defaultValue={user.name} required maxLength={80}/></Field><Field label="학과"><input name="department" defaultValue={user.department||''} maxLength={120}/></Field><Field label="학번"><input name="studentNumber" defaultValue={user.studentNumber||''} maxLength={40}/></Field><ErrorMessage error={error}/>{saved&&<p role="status">저장했어요.</p>}<button className="primary">프로필 저장</button></form></Panel>}

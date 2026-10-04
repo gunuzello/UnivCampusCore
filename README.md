@@ -22,6 +22,8 @@ npm run dev
 
 웹: http://localhost:5173 / API: http://localhost:8080 / Swagger: http://localhost:8080/swagger-ui.html
 
+PostgreSQL 호스트 포트는 기존 로컬 DB와 충돌하지 않도록 5433을 사용한다.
+
 기본 DB 계정은 로컬 개발 전용이다. 변경할 경우 환경변수 DB_URL, DB_USERNAME, DB_PASSWORD와 Compose 설정을 함께 변경한다. `.env`는 Compose에 사용되고 백엔드 실행에는 셸 환경변수를 사용한다.
 
 ## 검증

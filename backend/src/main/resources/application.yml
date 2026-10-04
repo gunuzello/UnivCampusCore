@@ -2,7 +2,7 @@ spring:
   application:
     name: ucc
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/ucc}
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/ucc}
     username: ${DB_USERNAME:ucc}
     password: ${DB_PASSWORD:ucc_local_only}
   jpa:
