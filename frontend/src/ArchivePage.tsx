@@ -66,15 +66,17 @@ export default function ArchivePage({ org }: { org?: Organization }) {
       <ErrorMessage error={records.error} />
       <Panel title="활동 기록">
         {!records.data?.length && (
-          <Empty>완료한 행사, 종료한 모집과 지난 회의가 여기에 남아요.</Empty>
+          <Empty>완료한 행사, 종료한 모집, 지난 회의와 내부 일정이 여기에 남아요.</Empty>
         )}
         {records.data?.map((a) => (
           <Link className="list-row" key={a.key} to={a.path}>
             <div>
               <strong>{a.title}</strong>
               <p className="meta">
-                {{ EVENT: "행사", RECRUITMENT: "모집", MEETING: "회의" }[a.type] || a.type} ·{" "}
-                {date(a.date)}
+                {{ EVENT: "행사", RECRUITMENT: "모집", MEETING: "회의", SCHEDULE: "일정" }[
+                  a.type
+                ] || a.type}{" "}
+                · {date(a.date)}
               </p>
             </div>
             <Status value={a.status} />

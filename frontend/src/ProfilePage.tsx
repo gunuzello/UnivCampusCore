@@ -1,8 +1,9 @@
+import PersonalPanel from "./PersonalPanel";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { request, type Profile } from "./api";
-import { Panel, Field, ErrorMessage, Empty, Status, date } from "./ui";
+import { Panel, Field, ErrorMessage, Empty, Status, date, Action } from "./ui";
 export default function ProfilePage({ user }: { user: Profile }) {
   const query = useQueryClient();
   const [error, setError] = useState<unknown>();
@@ -53,6 +54,17 @@ export default function ProfilePage({ user }: { user: Profile }) {
           <button className="primary">프로필 저장</button>
         </form>
       </Panel>
+      <Panel title="계정">
+        <Action
+          label="로그아웃"
+          onAction={async () => {
+            await request("/auth/logout", "POST");
+            query.removeQueries({ predicate: (q) => q.queryKey[0] !== "me" });
+            await query.resetQueries({ queryKey: ["me"] });
+          }}
+        />
+      </Panel>
+      <PersonalPanel />
       <Panel title="내 신청과 지원">
         <ErrorMessage error={applications.error} />
         {!applications.data?.length && <Empty>아직 신청한 행사나 모집이 없어요.</Empty>}

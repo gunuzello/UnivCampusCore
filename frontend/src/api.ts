@@ -6,6 +6,7 @@ export type Profile = {
   studentNumber: string;
 };
 export type Organization = {
+  type: "STUDENT_COUNCIL" | "CLUB";
   id: number;
   name: string;
   department: string;
@@ -63,4 +64,25 @@ export async function request<T>(path: string, method = "GET", body?: unknown): 
     );
   }
   return data;
+}
+
+export async function download(path: string, filename: string): Promise<void> {
+  const response = await fetch("/api/v1" + path, { credentials: "include" });
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new ApiError(
+      response.status,
+      data?.code || "DOWNLOAD_FAILED",
+      data?.message || "명단을 내려받지 못했어요. 다시 로그인하거나 잠시 후 시도해 주세요.",
+    );
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 10000);
 }

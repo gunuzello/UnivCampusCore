@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { NavLink, Routes, Route, Navigate } from "react-router-dom";
+import { NavLink, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Home, Compass, CalendarDays, Users, UserRound } from "./Icons";
 import { request, ApiError, type Profile, type Organization } from "./api";
 import AuthPage from "./AuthPage";
@@ -10,13 +10,44 @@ import { Panel, Empty, ErrorMessage, Action } from "./ui";
 import { ActivityList, ActivityCreate, ActivityDetail } from "./ActivityPages";
 import Dashboard from "./Dashboard";
 import CalendarPage from "./CalendarPage";
+import ScheduleDetail from "./ScheduleDetail";
 import ArchivePage from "./ArchivePage";
 import { MeetingList, MeetingDetail } from "./MeetingPages";
 import NotificationsPage from "./NotificationsPage";
+import RentalPage from "./RentalPage";
+import { TeamDetail } from "./TeamPages";
+import { ProgramDetail } from "./ProgramPages";
 import DiscoverPage from "./DiscoverPage";
 export default function App() {
   const query = useQueryClient();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [selected, setSelected] = useState<number>();
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const value = new URLSearchParams(location.search).get("org");
+    if (value && /^\d+$/.test(value) && Number(value) > 0) setSelected(Number(value));
+  }, [location.search]);
+  useEffect(() => {
+    setMenuOpen(false);
+    window.scrollTo({ top: 0, behavior: "instant" });
+    document.getElementById("page-content")?.focus({ preventScroll: true });
+  }, [location.pathname]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    const closeOutside = (e: MouseEvent) => {
+      if (!(e.target as Element).closest(".mobile-menu")) setMenuOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("click", closeOutside);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("click", closeOutside);
+    };
+  }, [menuOpen]);
   const me = useQuery({ queryKey: ["me"], queryFn: () => request<Profile>("/me") });
   const organizations = useQuery({
     queryKey: ["organizations"],
@@ -37,6 +68,9 @@ export default function App() {
   const org = organizations.data?.find((o) => o.id === selected) || organizations.data?.[0];
   return (
     <div className="shell">
+      <a className="skip-link" href="#page-content">
+        본문으로 이동
+      </a>
       <aside>
         <NavLink to="/" className="brand">
           <img src="/ucc-logo.png" alt="" />
@@ -46,14 +80,16 @@ export default function App() {
           </div>
         </NavLink>
         <p className="eyebrow">캠퍼스의 이야기를 잇다</p>
-        <nav>
+        <nav aria-label="주요 메뉴">
           {[
             ["/", "홈", Home],
             ["/discover", "찾기", Compass],
             ["/calendar", "캘린더", CalendarDays],
             ["/organization", "소속", Users],
+            ["/profile", "내 정보", UserRound],
             ["/events", "행사", Compass],
             ["/recruitments", "모집", Users],
+            ["/rentals", "대여사업", Users],
             ["/meetings", "회의", Users],
             ["/archive", "지난 활동", CalendarDays],
           ].map(([to, label, Icon]) => {
@@ -63,9 +99,11 @@ export default function App() {
               <NavLink
                 key={to as string}
                 to={to as string}
-                end
+                end={to === "/"}
                 className={
-                  ["/", "/discover", "/calendar", "/organization"].includes(to as string)
+                  ["/", "/discover", "/calendar", "/organization", "/profile"].includes(
+                    to as string,
+                  )
                     ? undefined
                     : "secondary-nav"
                 }
@@ -100,13 +138,46 @@ export default function App() {
             <span className="eyebrow">UNIVERSITY CAMPUS CORE</span>
             <p>함께 만들고, 다음으로 이어가요.</p>
           </div>
+          <div className="mobile-menu">
+            <button
+              className="secondary"
+              aria-expanded={menuOpen}
+              aria-controls="mobile-links"
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              메뉴
+            </button>
+            {menuOpen && (
+              <nav id="mobile-links" aria-label="활동 메뉴">
+                {[
+                  ["/events", "행사"],
+                  ["/recruitments", "모집"],
+                  ["/rentals", "대여사업"],
+                  ...(org?.role
+                    ? [
+                        ["/meetings", "회의"],
+                        ["/archive", "지난 활동"],
+                      ]
+                    : []),
+                ].map(([to, label]) => (
+                  <NavLink key={to} to={to}>
+                    {label}
+                  </NavLink>
+                ))}
+              </nav>
+            )}
+          </div>
           <select
-            aria-label="학생회 선택"
+            aria-label="소속 선택"
             value={org?.id || ""}
-            onChange={(e) => setSelected(Number(e.target.value))}
+            onChange={(e) => {
+              const id = Number(e.target.value);
+              setSelected(id);
+              if (location.pathname === "/organization") navigate("/organization?org=" + id);
+            }}
           >
             <option value="" disabled>
-              학생회 선택
+              소속 선택
             </option>
             {organizations.data?.map((o) => (
               <option key={o.id} value={o.id}>
@@ -121,7 +192,7 @@ export default function App() {
             {user.name[0]}
           </NavLink>
         </header>
-        <main>
+        <main id="page-content" tabIndex={-1}>
           <ErrorMessage error={organizations.error} />
           <Routes>
             <Route path="/" element={<Dashboard user={user} org={org} />} />
@@ -150,10 +221,14 @@ export default function App() {
               path="/organization"
               element={<OrganizationPage key={org?.id} org={org} onSelect={setSelected} />}
             />
+            <Route path="/rentals" element={<RentalPage key={org?.id} org={org} />} />
             <Route path="/profile" element={<ProfilePage user={user} />} />
-            <Route path="/discover" element={<DiscoverPage />} />
+            <Route path="/teams/:id" element={<TeamDetail />} />
+            <Route path="/programs/:id" element={<ProgramDetail />} />
+            <Route path="/discover" element={<DiscoverPage org={org} />} />
             <Route path="/calendar" element={<CalendarPage key={org?.id} org={org} />} />
             <Route path="/meetings" element={<MeetingList key={org?.id} org={org} />} />
+            <Route path="/schedules/:id" element={<ScheduleDetail />} />
             <Route path="/meetings/:id" element={<MeetingDetail />} />
             <Route path="/archive" element={<ArchivePage key={org?.id} org={org} />} />
             <Route path="/notifications" element={<NotificationsPage />} />
