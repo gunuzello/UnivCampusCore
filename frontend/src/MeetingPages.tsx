@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { request, type Organization, type Profile } from "./api";
 import { Panel, Field, Empty, ErrorMessage, date, instant } from "./ui";
 import LinksPanel from "./LinksPanel";
+import MeetingResponsesPanel from "./MeetingResponsesPanel";
 type Meeting = {
   id: number;
   organizationId: number;
@@ -155,6 +156,7 @@ export function MeetingList({ org }: { org?: Organization }) {
             orgId={org.id}
             onDone={async (m) => {
               await query.invalidateQueries({ queryKey: ["meetings"] });
+              await query.invalidateQueries({ queryKey: ["meeting-responses"] });
               await query.invalidateQueries({ queryKey: ["calendar"] });
               await query.invalidateQueries({ queryKey: ["archive"] });
               nav("/meetings/" + m.id);
@@ -201,7 +203,7 @@ export function MeetingDetail() {
   return (
     <>
       <div className="toolbar">
-        <Link to="/meetings">← 회의 목록</Link>
+        <Link to={"/meetings?org=" + m.organizationId}>← 회의 목록</Link>
         {m.canManage && (
           <button className="secondary" onClick={() => setEditing(!editing)}>
             {editing ? "닫기" : "회의 수정"}
@@ -222,6 +224,7 @@ export function MeetingDetail() {
             onDone={async () => {
               setEditing(false);
               await query.invalidateQueries({ queryKey: ["meetings"] });
+              await query.invalidateQueries({ queryKey: ["meeting-responses"] });
               await query.invalidateQueries({ queryKey: ["calendar"] });
               await query.invalidateQueries({ queryKey: ["archive"] });
               await query.invalidateQueries({ queryKey: ["calendar"] });
@@ -262,6 +265,13 @@ export function MeetingDetail() {
             </Panel>
           </div>
           <div>
+            <MeetingResponsesPanel
+              key={m.id + ":" + m.startsAt}
+              id={m.id}
+              attendees={m.attendees}
+              startsAt={m.startsAt}
+              members={members.data}
+            />
             <Panel title="참석 대상">
               <ErrorMessage error={members.error} />
               {m.attendees.map((u) => (

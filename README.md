@@ -83,7 +83,7 @@ GitHub Actions에도 PostgreSQL 기반 백엔드 테스트와 프론트엔드 �
 
 - Frontend: TypeScript, React, Vite, React Router, TanStack Query.
 - Backend: Java 17 호환, Spring Boot 3.5.5, JPA, Spring Security, OpenAPI.
-- Database: PostgreSQL 16, Flyway V1–V8 마이그레이션.
+- Database: PostgreSQL 16, Flyway V1–V9 마이그레이션.
 - Architecture: 도메인별 패키지를 둔 단일 Spring Boot 애플리케이션.
 - 인증: HttpOnly 세션 쿠키 + CSRF 토큰. 웹은 Vite 프록시로 같은 출처에서 API를 호출한다.
 
@@ -105,3 +105,5 @@ Compose는 `.env`를 읽지만 백엔드는 셸 환경변수를 읽는다. 계�
 - `COOKIE_SECURE`: HTTPS 환경에서 true로 설정한다.
 
 배포는 이번 완료 범위에 포함하지 않는다. 서버 세션은 현재 메모리에 있으므로 백엔드를 재시작하면 다시 로그인해야 한다. 사용자·조직·활동 데이터는 DB에 남는다. Android/iOS용 인증 어댑터, 학교 인증과 푸시는 후속 범위다.
+
+회의 상세에서 참석 예정/불참 예정/미정 응답과 구성원별 현황을 확인할 수 있습니다. 시작 후 응답은 마감되며 시작 시각 변경 시 응답을 초기화합니다.
