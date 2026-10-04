@@ -1,0 +1,5 @@
+create table events(id bigserial primary key,organization_id bigint not null references organizations(id),title varchar(200) not null,description text,opens_at timestamptz not null,closes_at timestamptz not null,starts_at timestamptz not null,ends_at timestamptz not null,location varchar(200) not null,capacity integer not null check(capacity>0),status varchar(30) not null,created_at timestamptz not null);
+create index idx_events_organization on events(organization_id);
+create table event_questions(event_id bigint not null references events(id),position integer not null,question varchar(500) not null,primary key(event_id,position));
+create table event_applications(id bigserial primary key,event_id bigint not null references events(id),user_id bigint not null references app_users(id),name varchar(255),email varchar(255),department varchar(255),student_number varchar(255),status varchar(30) not null,submitted_at timestamptz not null,unique(event_id,user_id));
+create table event_answers(application_id bigint not null references event_applications(id),position integer not null,answer text,primary key(application_id,position));

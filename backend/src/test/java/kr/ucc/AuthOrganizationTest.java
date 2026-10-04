@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.*;
 import static org.junit.jupiter.api.Assertions.*;
+@org.springframework.test.context.ActiveProfiles("test")
 @SpringBootTest @AutoConfigureMockMvc @Transactional
 class AuthOrganizationTest {
  @Autowired MockMvc mvc; @Autowired UserRepository users; @Autowired PasswordEncoder encoder;

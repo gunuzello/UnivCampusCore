@@ -1,0 +1,5 @@
+create table recruitments(id bigserial primary key,organization_id bigint not null references organizations(id),title varchar(200) not null,description text,opens_at timestamptz not null,closes_at timestamptz not null,status varchar(30) not null,created_at timestamptz not null);
+create index idx_recruitments_organization on recruitments(organization_id);
+create table recruitment_questions(recruitment_id bigint not null references recruitments(id),position integer not null,question varchar(500) not null,primary key(recruitment_id,position));
+create table recruitment_applications(id bigserial primary key,recruitment_id bigint not null references recruitments(id),user_id bigint not null references app_users(id),name varchar(255),email varchar(255),department varchar(255),student_number varchar(255),status varchar(30) not null,submitted_at timestamptz not null,unique(recruitment_id,user_id));
+create table recruitment_answers(application_id bigint not null references recruitment_applications(id),position integer not null,answer text,primary key(application_id,position));
