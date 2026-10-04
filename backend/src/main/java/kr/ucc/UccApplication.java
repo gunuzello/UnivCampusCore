@@ -1,5 +1,14 @@
 package kr.ucc;
+
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-@SpringBootApplication
-public class UccApplication { public static void main(String[] args) { SpringApplication.run(UccApplication.class,args); } }
+
+@SpringBootApplication(
+  exclude = org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration.class
+)
+public class UccApplication {
+
+  public static void main(String[] args) {
+    SpringApplication.run(UccApplication.class, args);
+  }
+}

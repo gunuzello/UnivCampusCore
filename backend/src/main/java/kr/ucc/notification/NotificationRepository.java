@@ -1,4 +1,8 @@
 package kr.ucc.notification;
-import org.springframework.data.jpa.repository.JpaRepository;
+
 import java.util.List;
-public interface NotificationRepository extends JpaRepository<Notification,Long>{List<Notification> findTop100ByUserIdOrderByCreatedAtDesc(Long userId);}
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface NotificationRepository extends JpaRepository<Notification, Long> {
+  List<Notification> findTop100ByUserIdOrderByCreatedAtDesc(Long userId);
+}

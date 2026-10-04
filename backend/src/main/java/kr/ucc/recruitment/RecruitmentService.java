@@ -1,29 +1,312 @@
 package kr.ucc.recruitment;
-import kr.ucc.organization.*;import kr.ucc.user.*;import kr.ucc.common.ApiException;import kr.ucc.notification.Notifications;
-import org.springframework.stereotype.Service;import org.springframework.transaction.annotation.Transactional;import org.springframework.http.HttpStatus;
-import jakarta.validation.constraints.*;import java.time.Instant;import java.util.*;
-@Service @Transactional public class RecruitmentService {
- private final RecruitmentRepository repository;private final RecruitmentApplicationRepository applications;private final OrganizationAccess access;private final OrganizationRepository organizations;private final UserRepository users;private final Notifications notifications;
- public RecruitmentService(RecruitmentRepository repository,RecruitmentApplicationRepository applications,OrganizationAccess access,OrganizationRepository organizations,UserRepository users,Notifications notifications){this.repository=repository;this.applications=applications;this.access=access;this.organizations=organizations;this.users=users;this.notifications=notifications;}
- public record Input(@NotBlank @Size(max=200) String title,@Size(max=20000) String description,@NotNull Instant opensAt,@NotNull Instant closesAt,@NotNull @Size(max=20) List<@NotBlank @Size(max=500) String> questions){}
- public record StatusInput(@NotNull Recruitment.Status status){}
- public record Apply(@NotNull @Size(max=20) List<@NotBlank @Size(max=5000) String> answers){}
- public record ApplicationStatus(@NotNull RecruitmentApplication.Status status){}
- public record View(Long id,Long organizationId,String title,String description,Instant opensAt,Instant closesAt,Recruitment.Status status,List<String> questions,long applicationCount,boolean canManage){}
- public record ApplicationView(Long id,Long userId,String name,String email,String department,String studentNumber,RecruitmentApplication.Status status,List<String> answers,Instant submittedAt){}
- private boolean staff(Long org,Long user){try{access.staff(org,user);return true;}catch(ApiException ex){return false;}}
- private View view(Recruitment e,Long user){return new View(e.id,e.organizationId,e.title,e.description,e.opensAt,e.closesAt,e.status,List.copyOf(e.questions),applications.countByRecruitmentIdAndStatusNot(e.id,RecruitmentApplication.Status.CANCELLED),staff(e.organizationId,user));}
- private ApplicationView applicationView(RecruitmentApplication a){return new ApplicationView(a.id,a.userId,a.name,a.email,a.department,a.studentNumber,a.status,List.copyOf(a.answers),a.submittedAt);}
- private Recruitment visible(Long id,Long user){var e=repository.findById(id).orElseThrow(ApiException::missing);if(e.status==Recruitment.Status.DRAFT&&!staff(e.organizationId,user))throw ApiException.missing();return e;}
- @Transactional(readOnly=true) public List<View> list(Long org,Long user){if(!organizations.existsById(org))throw ApiException.missing();return repository.findByOrganizationIdOrderByCreatedAtDesc(org).stream().filter(e->e.status!=Recruitment.Status.DRAFT||staff(org,user)).map(e->view(e,user)).toList();}
- @Transactional(readOnly=true) public View get(Long id,Long user){return view(visible(id,user),user);}
- private void set(Recruitment e,Input d){if(!d.opensAt().isBefore(d.closesAt()))throw ApiException.bad("INVALID_PERIOD","신청 종료 시각은 시작 이후여야 합니다.");e.title=d.title().trim();e.description=d.description();e.opensAt=d.opensAt();e.closesAt=d.closesAt();e.questions=new ArrayList<>(d.questions());}
- public View create(Long org,Long user,Input d){access.staff(org,user);var e=new Recruitment();e.organizationId=org;set(e,d);return view(repository.save(e),user);}
- public View update(Long id,Long user,Input d){var e=repository.lockById(id).orElseThrow(ApiException::missing);access.staff(e.organizationId,user);if(e.status==Recruitment.Status.CLOSED||e.status==Recruitment.Status.CANCELLED)throw ApiException.bad("ARCHIVED_ACTIVITY","종료된 활동은 변경할 수 없습니다.");if(e.status!=Recruitment.Status.DRAFT&&!e.questions.equals(d.questions()))throw ApiException.bad("QUESTIONS_LOCKED","공개한 뒤에는 질문을 변경할 수 없습니다.");set(e,d);for(var a:applications.findByRecruitmentIdOrderBySubmittedAtAsc(id)){if(a.status!=RecruitmentApplication.Status.CANCELLED)notifications.send(a.userId,e.title+" 내용이 변경되었습니다.","/recruitments/"+id);}return view(e,user);}
- public View status(Long id,Long user,Recruitment.Status next){var e=repository.lockById(id).orElseThrow(ApiException::missing);access.staff(e.organizationId,user);if(e.status==next)return view(e,user);boolean allowed=(e.status==Recruitment.Status.DRAFT&&(next==Recruitment.Status.PUBLISHED||next==Recruitment.Status.CANCELLED))||(e.status==Recruitment.Status.PUBLISHED&&(next==Recruitment.Status.CLOSED||next==Recruitment.Status.CANCELLED));if(!allowed)throw ApiException.bad("INVALID_TRANSITION","허용되지 않은 상태 변경입니다.");e.status=next;if(next==Recruitment.Status.CANCELLED)for(var a:applications.findByRecruitmentIdOrderBySubmittedAtAsc(id)){if(a.status!=RecruitmentApplication.Status.CANCELLED)notifications.send(a.userId,e.title+" 활동이 취소되었습니다.","/recruitments/"+id);}return view(e,user);}
- public ApplicationView apply(Long id,Long user,Apply d){var e=repository.lockById(id).orElseThrow(ApiException::missing);var now=Instant.now();if(e.status!=Recruitment.Status.PUBLISHED)throw ApiException.bad("NOT_OPEN","현재 신청할 수 없는 활동입니다.");if(now.isBefore(e.opensAt))throw ApiException.bad("NOT_STARTED","아직 신청 시작 전입니다.");if(!now.isBefore(e.closesAt))throw ApiException.bad("PERIOD_ENDED","신청 기간이 종료되었습니다.");if(d.answers().size()!=e.questions.size())throw ApiException.bad("INVALID_ANSWERS","모든 질문에 답변해 주세요.");var prior=applications.findByRecruitmentIdAndUserId(id,user);if(prior.isPresent()&&prior.get().status!=RecruitmentApplication.Status.CANCELLED)throw new ApiException(HttpStatus.CONFLICT,"ALREADY_APPLIED","이미 신청한 활동입니다.");var u=users.findById(user).orElseThrow(ApiException::missing);var a=prior.orElseGet(RecruitmentApplication::new);a.recruitmentId=id;a.userId=user;a.name=u.name;a.email=u.email;a.department=u.department;a.studentNumber=u.studentNumber;a.answers=new ArrayList<>(d.answers());a.status=RecruitmentApplication.Status.SUBMITTED;a.submittedAt=now;applications.save(a);notifications.send(user,e.title+" 신청이 완료되었습니다.","/recruitments/"+id);return applicationView(a);}
- @Transactional(readOnly=true) public ApplicationView mine(Long id,Long user){visible(id,user);return applications.findByRecruitmentIdAndUserId(id,user).map(this::applicationView).orElse(null);}
- public ApplicationView cancel(Long id,Long user){var e=repository.lockById(id).orElseThrow(ApiException::missing);if(e.status!=Recruitment.Status.PUBLISHED||!Instant.now().isBefore(e.closesAt))throw ApiException.bad("CANCELLATION_CLOSED","신청 기간 내에만 취소할 수 있습니다.");var a=applications.findByRecruitmentIdAndUserId(id,user).orElseThrow(ApiException::missing);a.status=RecruitmentApplication.Status.CANCELLED;notifications.send(user,e.title+" 신청을 취소했습니다.","/recruitments/"+id);return applicationView(a);}
- @Transactional(readOnly=true) public List<ApplicationView> applicants(Long id,Long user){var e=visible(id,user);access.staff(e.organizationId,user);return applications.findByRecruitmentIdOrderBySubmittedAtAsc(id).stream().map(this::applicationView).toList();}
- public ApplicationView result(Long id,Long applicationId,Long user,ApplicationStatus d){var e=repository.lockById(id).orElseThrow(ApiException::missing);access.staff(e.organizationId,user);if(e.status==Recruitment.Status.CANCELLED)throw ApiException.bad("INVALID_STATE","취소된 활동입니다.");var a=applications.findById(applicationId).orElseThrow(ApiException::missing);if(!a.recruitmentId.equals(id))throw ApiException.missing();if(a.status==RecruitmentApplication.Status.CANCELLED)throw ApiException.bad("INVALID_STATE","취소한 신청서는 변경할 수 없습니다.");if(d.status()==RecruitmentApplication.Status.CANCELLED)throw ApiException.bad("INVALID_STATE","지원자 취소 상태는 운영진이 지정할 수 없습니다.");a.status=d.status();notifications.send(a.userId,e.title+" 신청 상태가 변경되었습니다.","/recruitments/"+id);return applicationView(a);}
+
+import jakarta.validation.constraints.*;
+import java.time.Instant;
+import java.util.*;
+import kr.ucc.common.ApiException;
+import kr.ucc.notification.Notifications;
+import kr.ucc.organization.*;
+import kr.ucc.user.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@Transactional
+public class RecruitmentService {
+
+  private final RecruitmentRepository repository;
+  private final RecruitmentApplicationRepository applications;
+  private final OrganizationAccess access;
+  private final OrganizationRepository organizations;
+  private final UserRepository users;
+  private final Notifications notifications;
+
+  public RecruitmentService(
+    RecruitmentRepository repository,
+    RecruitmentApplicationRepository applications,
+    OrganizationAccess access,
+    OrganizationRepository organizations,
+    UserRepository users,
+    Notifications notifications
+  ) {
+    this.repository = repository;
+    this.applications = applications;
+    this.access = access;
+    this.organizations = organizations;
+    this.users = users;
+    this.notifications = notifications;
+  }
+
+  public record Input(
+    @NotBlank @Size(max = 200) String title,
+    @Size(max = 20000) String description,
+    @NotNull Instant opensAt,
+    @NotNull Instant closesAt,
+    @NotNull @Size(max = 20) List<@NotBlank @Size(max = 500) String> questions
+  ) {}
+
+  public record StatusInput(@NotNull Recruitment.Status status) {}
+
+  public record Apply(@NotNull @Size(max = 20) List<@NotBlank @Size(max = 5000) String> answers) {}
+
+  public record ApplicationStatus(@NotNull RecruitmentApplication.Status status) {}
+
+  public record View(
+    Long id,
+    Long organizationId,
+    String title,
+    String description,
+    Instant opensAt,
+    Instant closesAt,
+    Recruitment.Status status,
+    List<String> questions,
+    long applicationCount,
+    boolean canManage
+  ) {}
+
+  public record ApplicationView(
+    Long id,
+    Long userId,
+    String name,
+    String email,
+    String department,
+    String studentNumber,
+    RecruitmentApplication.Status status,
+    List<String> answers,
+    Instant submittedAt
+  ) {}
+
+  private boolean staff(Long org, Long user) {
+    try {
+      access.staff(org, user);
+      return true;
+    } catch (ApiException ex) {
+      return false;
+    }
+  }
+
+  private View view(Recruitment e, Long user) {
+    return new View(
+      e.id,
+      e.organizationId,
+      e.title,
+      e.description,
+      e.opensAt,
+      e.closesAt,
+      e.status,
+      List.copyOf(e.questions),
+      applications.countByRecruitmentIdAndStatusNot(e.id, RecruitmentApplication.Status.CANCELLED),
+      staff(e.organizationId, user)
+    );
+  }
+
+  private ApplicationView applicationView(RecruitmentApplication a) {
+    return new ApplicationView(
+      a.id,
+      a.userId,
+      a.name,
+      a.email,
+      a.department,
+      a.studentNumber,
+      a.status,
+      List.copyOf(a.answers),
+      a.submittedAt
+    );
+  }
+
+  private Recruitment visible(Long id, Long user) {
+    var e = repository.findById(id).orElseThrow(ApiException::missing);
+    if (
+      e.status == Recruitment.Status.DRAFT && !staff(e.organizationId, user)
+    ) throw ApiException.missing();
+    return e;
+  }
+
+  @Transactional(readOnly = true)
+  public List<View> list(Long org, Long user) {
+    if (!organizations.existsById(org)) throw ApiException.missing();
+    return repository
+      .findByOrganizationIdOrderByCreatedAtDesc(org)
+      .stream()
+      .filter(e -> e.status != Recruitment.Status.DRAFT || staff(org, user))
+      .map(e -> view(e, user))
+      .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public View get(Long id, Long user) {
+    return view(visible(id, user), user);
+  }
+
+  private void set(Recruitment e, Input d) {
+    if (!d.opensAt().isBefore(d.closesAt())) throw ApiException.bad(
+      "INVALID_PERIOD",
+      "신청 종료 시각은 시작 이후여야 합니다."
+    );
+    e.title = d.title().trim();
+    e.description = d.description();
+    e.opensAt = d.opensAt();
+    e.closesAt = d.closesAt();
+    e.questions = new ArrayList<>(d.questions());
+  }
+
+  public View create(Long org, Long user, Input d) {
+    access.staff(org, user);
+    var e = new Recruitment();
+    e.organizationId = org;
+    set(e, d);
+    return view(repository.save(e), user);
+  }
+
+  public View update(Long id, Long user, Input d) {
+    var e = repository.lockById(id).orElseThrow(ApiException::missing);
+    access.staff(e.organizationId, user);
+    if (
+      e.status == Recruitment.Status.CLOSED || e.status == Recruitment.Status.CANCELLED
+    ) throw ApiException.bad("ARCHIVED_ACTIVITY", "종료된 활동은 변경할 수 없습니다.");
+    if (
+      e.status != Recruitment.Status.DRAFT && !e.questions.equals(d.questions())
+    ) throw ApiException.bad("QUESTIONS_LOCKED", "공개한 뒤에는 질문을 변경할 수 없습니다.");
+    set(e, d);
+    for (var a : applications.findByRecruitmentIdOrderBySubmittedAtAsc(id)) {
+      if (a.status != RecruitmentApplication.Status.CANCELLED) notifications.send(
+        a.userId,
+        e.title + " 내용이 변경되었습니다.",
+        "/recruitments/" + id
+      );
+    }
+    return view(e, user);
+  }
+
+  public View status(Long id, Long user, Recruitment.Status next) {
+    var e = repository.lockById(id).orElseThrow(ApiException::missing);
+    access.staff(e.organizationId, user);
+    if (e.status == next) return view(e, user);
+    boolean allowed =
+      (e.status == Recruitment.Status.DRAFT &&
+        (next == Recruitment.Status.PUBLISHED || next == Recruitment.Status.CANCELLED)) ||
+      (e.status == Recruitment.Status.PUBLISHED &&
+        (next == Recruitment.Status.CLOSED || next == Recruitment.Status.CANCELLED));
+    if (!allowed) throw ApiException.bad("INVALID_TRANSITION", "허용되지 않은 상태 변경입니다.");
+    e.status = next;
+    if (
+      next == Recruitment.Status.CANCELLED
+    ) for (var a : applications.findByRecruitmentIdOrderBySubmittedAtAsc(id)) {
+      if (a.status != RecruitmentApplication.Status.CANCELLED) notifications.send(
+        a.userId,
+        e.title + " 활동이 취소되었습니다.",
+        "/recruitments/" + id
+      );
+    }
+    return view(e, user);
+  }
+
+  public ApplicationView apply(Long id, Long user, Apply d) {
+    var e = repository.lockById(id).orElseThrow(ApiException::missing);
+    var now = Instant.now();
+    if (e.status != Recruitment.Status.PUBLISHED) throw ApiException.bad(
+      "NOT_OPEN",
+      "현재 신청할 수 없는 활동입니다."
+    );
+    if (now.isBefore(e.opensAt)) throw ApiException.bad("NOT_STARTED", "아직 신청 시작 전입니다.");
+    if (!now.isBefore(e.closesAt)) throw ApiException.bad(
+      "PERIOD_ENDED",
+      "신청 기간이 종료되었습니다."
+    );
+    if (d.answers().size() != e.questions.size()) throw ApiException.bad(
+      "INVALID_ANSWERS",
+      "모든 질문에 답변해 주세요."
+    );
+    var prior = applications.findByRecruitmentIdAndUserId(id, user);
+    if (
+      prior.isPresent() && prior.get().status != RecruitmentApplication.Status.CANCELLED
+    ) throw new ApiException(HttpStatus.CONFLICT, "ALREADY_APPLIED", "이미 신청한 활동입니다.");
+    var u = users.findById(user).orElseThrow(ApiException::missing);
+    var a = prior.orElseGet(RecruitmentApplication::new);
+    a.recruitmentId = id;
+    a.userId = user;
+    a.name = u.name;
+    a.email = u.email;
+    a.department = u.department;
+    a.studentNumber = u.studentNumber;
+    a.answers = new ArrayList<>(d.answers());
+    a.status = RecruitmentApplication.Status.SUBMITTED;
+    a.submittedAt = now;
+    applications.save(a);
+    notifications.send(user, e.title + " 신청이 완료되었습니다.", "/recruitments/" + id);
+    return applicationView(a);
+  }
+
+  @Transactional(readOnly = true)
+  public ApplicationView mine(Long id, Long user) {
+    visible(id, user);
+    return applications
+      .findByRecruitmentIdAndUserId(id, user)
+      .map(this::applicationView)
+      .orElse(null);
+  }
+
+  public ApplicationView cancel(Long id, Long user) {
+    var e = repository.lockById(id).orElseThrow(ApiException::missing);
+    if (
+      e.status != Recruitment.Status.PUBLISHED || !Instant.now().isBefore(e.closesAt)
+    ) throw ApiException.bad("CANCELLATION_CLOSED", "신청 기간 내에만 취소할 수 있습니다.");
+    var a = applications.findByRecruitmentIdAndUserId(id, user).orElseThrow(ApiException::missing);
+    a.status = RecruitmentApplication.Status.CANCELLED;
+    notifications.send(user, e.title + " 신청을 취소했습니다.", "/recruitments/" + id);
+    return applicationView(a);
+  }
+
+  @Transactional(readOnly = true)
+  public List<ApplicationView> applicants(Long id, Long user) {
+    var e = visible(id, user);
+    access.staff(e.organizationId, user);
+    return applications
+      .findByRecruitmentIdOrderBySubmittedAtAsc(id)
+      .stream()
+      .map(this::applicationView)
+      .toList();
+  }
+
+  public ApplicationView result(Long id, Long applicationId, Long user, ApplicationStatus d) {
+    var e = repository.lockById(id).orElseThrow(ApiException::missing);
+    access.staff(e.organizationId, user);
+    if (e.status == Recruitment.Status.CANCELLED) throw ApiException.bad(
+      "INVALID_STATE",
+      "취소된 활동입니다."
+    );
+    var a = applications.findById(applicationId).orElseThrow(ApiException::missing);
+    if (!a.recruitmentId.equals(id)) throw ApiException.missing();
+    if (a.status == RecruitmentApplication.Status.CANCELLED) throw ApiException.bad(
+      "INVALID_STATE",
+      "취소한 신청서는 변경할 수 없습니다."
+    );
+    if (d.status() == RecruitmentApplication.Status.CANCELLED) throw ApiException.bad(
+      "INVALID_STATE",
+      "지원자 취소 상태는 운영진이 지정할 수 없습니다."
+    );
+    a.status = d.status();
+    notifications.send(a.userId, e.title + " 신청 상태가 변경되었습니다.", "/recruitments/" + id);
+    return applicationView(a);
+  }
+
+  @Transactional(readOnly = true)
+  public List<kr.ucc.application.MyApplicationView> myApplications(Long user) {
+    return applications
+      .findByUserIdOrderBySubmittedAtDesc(user)
+      .stream()
+      .map(a -> {
+        var e = repository.findById(a.recruitmentId).orElseThrow(ApiException::missing);
+        return new kr.ucc.application.MyApplicationView(
+          "recruitment-" + a.id,
+          "RECRUITMENT",
+          e.title,
+          a.status.name(),
+          "/recruitments/" + e.id,
+          a.submittedAt
+        );
+      })
+      .toList();
+  }
 }

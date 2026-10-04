@@ -1,0 +1,10 @@
+create table meetings(id bigserial primary key,organization_id bigint not null references organizations(id),title varchar(200) not null,starts_at timestamptz not null,ends_at timestamptz not null,content text);
+create index idx_meetings_organization on meetings(organization_id);
+create table meeting_attendees(meeting_id bigint not null references meetings(id),user_id bigint not null references app_users(id),primary key(meeting_id,user_id));
+create table meeting_agendas(meeting_id bigint not null references meetings(id),position integer not null,content text,primary key(meeting_id,position));
+create table meeting_decisions(meeting_id bigint not null references meetings(id),position integer not null,content text,primary key(meeting_id,position));
+create table schedules(id bigserial primary key,organization_id bigint not null references organizations(id),title varchar(200) not null,starts_at timestamptz not null,ends_at timestamptz not null,description text);
+create index idx_schedules_organization on schedules(organization_id);
+create table handover_notes(id bigserial primary key,organization_id bigint not null references organizations(id),title varchar(200) not null,period varchar(80) not null,content text,updated_at timestamptz not null);
+create table external_links(id bigserial primary key,organization_id bigint not null references organizations(id),target_type varchar(255) not null,target_id bigint not null,title varchar(200) not null,url varchar(2000) not null,description text);
+create index idx_links_target on external_links(organization_id,target_type,target_id);
