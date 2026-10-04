@@ -1,0 +1,2 @@
+CREATE TABLE interest_profiles(user_id BIGINT PRIMARY KEY REFERENCES app_users(id),interests VARCHAR(2000),activities VARCHAR(2000),courses VARCHAR(4000),skills VARCHAR(4000),portfolio TEXT);
+CREATE TABLE saved_activities(id BIGSERIAL PRIMARY KEY,user_id BIGINT NOT NULL REFERENCES app_users(id),type VARCHAR(30) NOT NULL CHECK(type IN ('PROGRAM','TEAM','EVENT','RECRUITMENT')),target_id BIGINT NOT NULL,UNIQUE(user_id,type,target_id));

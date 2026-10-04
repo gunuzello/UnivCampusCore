@@ -20,6 +20,12 @@ import org.springframework.web.bind.annotation.*;
 @Transactional
 public class ScheduleController {
 
+  private final kr.ucc.organization.MembershipRepository memberships;
+  private final kr.ucc.personal.PersonalController personal;
+  private final kr.ucc.program.ProgramRepository programs;
+  private final kr.ucc.team.TeamRepository teams;
+  private final kr.ucc.team.TeamApplicationRepository teamApplications;
+  private final kr.ucc.team.TeamEntryRepository teamEntries;
   private final ScheduleRepository schedules;
   private final OrganizationAccess access;
   private final EventService events;
@@ -31,8 +37,20 @@ public class ScheduleController {
     OrganizationAccess access,
     EventService events,
     RecruitmentService recruitments,
-    MeetingService meetings
+    MeetingService meetings,
+    kr.ucc.organization.MembershipRepository memberships,
+    kr.ucc.personal.PersonalController personal,
+    kr.ucc.program.ProgramRepository programs,
+    kr.ucc.team.TeamRepository teams,
+    kr.ucc.team.TeamApplicationRepository teamApplications,
+    kr.ucc.team.TeamEntryRepository teamEntries
   ) {
+    this.memberships = memberships;
+    this.personal = personal;
+    this.programs = programs;
+    this.teams = teams;
+    this.teamApplications = teamApplications;
+    this.teamEntries = teamEntries;
     this.schedules = schedules;
     this.access = access;
     this.events = events;
@@ -152,6 +170,88 @@ public class ScheduleController {
     return out
       .stream()
       .filter(s -> s.startsAt().isBefore(to) && s.endsAt().isAfter(from))
+      .sorted(Comparator.comparing(View::startsAt))
+      .toList();
+  }
+
+  @GetMapping("/me/calendar")
+  @Transactional(readOnly = true)
+  List<View> personalCalendar(
+    @RequestParam Instant from,
+    @RequestParam Instant to,
+    @RequestParam(required = false) Long org,
+    Authentication a
+  ) {
+    if (
+      !from.isBefore(to) || java.time.Duration.between(from, to).toDays() > 93
+    ) throw ApiException.bad("INVALID_PERIOD", "조회 기간은 최대 93일까지입니다.");
+    Long user = CurrentUser.id(a);
+    var all = new LinkedHashMap<String, View>();
+    var ids = new HashSet<Long>();
+    for (var m : memberships.findByUserId(user)) ids.add(m.organizationId);
+    if (org != null) ids.add(org);
+    for (Long id : ids) for (var v : calendar(id, from, to, a)) all.put(v.key(), v);
+    for (var p : programs.findAll())
+      if (p.published) all.put(
+        "program-" + p.id,
+        new View(
+          "program-" + p.id,
+          p.id,
+          "PROGRAM",
+          p.title,
+          p.startsAt,
+          p.endsAt,
+          p.category,
+          "/programs/" + p.id,
+          false
+        )
+      );
+    for (var t : teams.findAll())
+      if (
+        t.ownerId.equals(user) ||
+        teamApplications
+          .findByTeamIdAndUserId(t.id, user)
+          .filter(r -> r.status.equals("ACCEPTED"))
+          .isPresent()
+      ) for (var e : teamEntries.findByTeamIdOrderByIdDesc(t.id))
+        if (Set.of("MEETING", "DEADLINE").contains(e.kind) && e.endsAt != null) {
+          Instant start = e.startsAt != null ? e.startsAt : e.endsAt;
+          all.put(
+            "team-entry-" + e.id,
+            new View(
+              "team-entry-" + e.id,
+              e.id,
+              "TEAM",
+              t.title + " · " + e.title,
+              start,
+              e.endsAt.equals(start) ? start.plusSeconds(1) : e.endsAt,
+              e.content,
+              "/teams/" + t.id,
+              false
+            )
+          );
+        }
+    for (var v : personal.list(a)) {
+      String key = v.type().toLowerCase() + "-" + v.targetId();
+      if (!all.containsKey(key)) all.put(
+        key,
+        new View(
+          key,
+          v.targetId(),
+          "SAVED",
+          v.title(),
+          v.startsAt(),
+          v.endsAt(),
+          "저장한 활동",
+          v.path(),
+          false
+        )
+      );
+    }
+    return all
+      .values()
+      .stream()
+      .filter(v -> v.startsAt().isBefore(to) && v.endsAt().isAfter(from))
       .sorted(Comparator.comparing(View::startsAt))
       .toList();
   }

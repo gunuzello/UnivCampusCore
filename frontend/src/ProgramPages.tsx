@@ -1,3 +1,4 @@
+import { SaveButton } from "./PersonalPanel";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
@@ -197,6 +198,7 @@ export function ProgramDetail() {
       <Link to="/discover">← 찾기</Link>
       <div className="page-heading">
         <h1>{p.title}</h1>
+        <SaveButton type="PROGRAM" id={p.id} />
         <p>
           {p.category} · {p.tags}
         </p>

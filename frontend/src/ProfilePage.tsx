@@ -1,3 +1,4 @@
+import PersonalPanel from "./PersonalPanel";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -63,6 +64,7 @@ export default function ProfilePage({ user }: { user: Profile }) {
           }}
         />
       </Panel>
+      <PersonalPanel />
       <Panel title="내 신청과 지원">
         <ErrorMessage error={applications.error} />
         {!applications.data?.length && <Empty>아직 신청한 행사나 모집이 없어요.</Empty>}

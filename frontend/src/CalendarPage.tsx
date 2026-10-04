@@ -37,18 +37,16 @@ export default function CalendarPage({ org }: { org?: Organization }) {
     to.setDate(to.getDate() + 7);
   }
   const path =
-    "/organizations/" +
-    org?.id +
-    "/calendar?from=" +
+    "/me/calendar?from=" +
     encodeURIComponent(from.toISOString()) +
     "&to=" +
-    encodeURIComponent(to.toISOString());
+    encodeURIComponent(to.toISOString()) +
+    (org ? "&org=" + org!.id : "");
   const q = useQuery({
     queryKey: ["calendar", org?.id, from.toISOString(), mode],
     queryFn: () => request<Entry[]>(path),
-    enabled: !!org,
   });
-  if (!org) return <Empty>학생회를 선택해 주세요.</Empty>;
+
   const days: Date[] = [];
   for (let d = new Date(from); d < to; d.setDate(d.getDate() + 1)) days.push(new Date(d));
   const blanks = mode === "month" ? (from.getDay() + 6) % 7 : 0;
@@ -104,7 +102,7 @@ export default function CalendarPage({ org }: { org?: Organization }) {
         >
           주
         </button>
-        {org.role && org.role !== "MEMBER" && (
+        {org?.role && org?.role !== "MEMBER" && (
           <button
             className="primary"
             onClick={() => {
@@ -128,7 +126,7 @@ export default function CalendarPage({ org }: { org?: Organization }) {
               const f = Object.fromEntries(new FormData(e.currentTarget));
               try {
                 await request(
-                  editing ? "/schedules/" + editing.id : "/organizations/" + org.id + "/schedules",
+                  editing ? "/schedules/" + editing.id : "/organizations/" + org!.id + "/schedules",
                   editing ? "PATCH" : "POST",
                   {
                     ...f,

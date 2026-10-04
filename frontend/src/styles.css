@@ -710,3 +710,13 @@ aside .aside-bottom {
     gap: 0;
   }
 }
+
+.calendar-grid a.saved {
+  border-style: dashed;
+}
+.calendar-grid a.program {
+  border-color: #8fa8c8;
+}
+.calendar-grid a.team {
+  border-color: #a08ab8;
+}

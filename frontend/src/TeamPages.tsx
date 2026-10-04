@@ -1,3 +1,4 @@
+import { SaveButton } from "./PersonalPanel";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -304,6 +305,7 @@ export function TeamDetail() {
       <Link to="/discover">← 찾기</Link>
       <div className="page-heading">
         <h1>{t.title}</h1>
+        <SaveButton type="TEAM" id={t.id} />
         <p>
           {labels[t.status]} · {v.memberCount}/{t.capacity}명 · 마감 {date(t.deadline)}
         </p>

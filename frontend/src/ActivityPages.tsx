@@ -1,3 +1,4 @@
+import { SaveButton } from "./PersonalPanel";
 import { useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -355,6 +356,7 @@ export function ActivityDetail({ kind, user }: { kind: Kind; user: Profile }) {
       </div>
       <div className="page-heading">
         <h1>{a.title}</h1>
+        <SaveButton type={kind === "events" ? "EVENT" : "RECRUITMENT"} id={a.id} />
         <p>
           {kind === "events" && a.startsAt
             ? date(a.startsAt) + " · " + a.location
