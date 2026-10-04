@@ -54,7 +54,7 @@ export default function CalendarPage({ org }: { org?: Organization }) {
     <>
       <div className="page-heading">
         <h1>캘린더</h1>
-        <p>행사, 모집, 회의와 내부 일정을 한눈에 봐요.</p>
+        <p>소속 활동, 프로그램, 팀 모임과 업무 마감을 한눈에 봐요.</p>
       </div>
       <div className="toolbar">
         <button
@@ -184,7 +184,7 @@ export default function CalendarPage({ org }: { org?: Organization }) {
           </form>
         </Panel>
       )}
-      <Panel title="우리 학생회 일정">
+      <Panel title="통합 일정">
         <div className="calendar-grid">
           {["월", "화", "수", "목", "금", "토", "일"].map((d) => (
             <div className="calendar-label" key={d}>

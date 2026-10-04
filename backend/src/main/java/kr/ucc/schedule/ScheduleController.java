@@ -26,6 +26,7 @@ public class ScheduleController {
   private final kr.ucc.team.TeamRepository teams;
   private final kr.ucc.team.TeamApplicationRepository teamApplications;
   private final kr.ucc.team.TeamEntryRepository teamEntries;
+  private final kr.ucc.organization.OrganizationWorkRepository work;
   private final ScheduleRepository schedules;
   private final OrganizationAccess access;
   private final EventService events;
@@ -43,8 +44,10 @@ public class ScheduleController {
     kr.ucc.program.ProgramRepository programs,
     kr.ucc.team.TeamRepository teams,
     kr.ucc.team.TeamApplicationRepository teamApplications,
-    kr.ucc.team.TeamEntryRepository teamEntries
+    kr.ucc.team.TeamEntryRepository teamEntries,
+    kr.ucc.organization.OrganizationWorkRepository work
   ) {
+    this.work = work;
     this.memberships = memberships;
     this.personal = personal;
     this.programs = programs;
@@ -231,9 +234,29 @@ public class ScheduleController {
             )
           );
         }
+    for (var m : memberships.findByUserId(user))
+      for (var w : work.findByOrganizationIdOrderByIdDesc(m.organizationId))
+        if (
+          w.kind.equals("TASK") &&
+          w.dueAt != null &&
+          (user.equals(w.assigneeId) || m.role != Membership.Role.MEMBER)
+        ) all.put(
+          "work-" + w.id,
+          new View(
+            "work-" + w.id,
+            w.id,
+            "TASK",
+            w.title + " · " + (w.status.equals("DONE") ? "완료" : "업무 마감"),
+            w.dueAt,
+            w.dueAt.plusSeconds(1),
+            w.content,
+            "/organization?org=" + m.organizationId,
+            false
+          )
+        );
     for (var v : personal.list(a)) {
       String key = v.type().toLowerCase() + "-" + v.targetId();
-      if (!all.containsKey(key)) all.put(
+      all.put(
         key,
         new View(
           key,

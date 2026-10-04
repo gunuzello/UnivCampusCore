@@ -1,3 +1,4 @@
+import { Recommendations } from "./PersonalPanel";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { request, type Organization, type Profile } from "./api";
@@ -21,9 +22,9 @@ export default function Dashboard({ user, org }: { user: Profile; org?: Organiza
     queryKey: ["calendar", org?.id, "home", from],
     queryFn: () =>
       request<{ key: string; title: string; startsAt: string; path: string }[]>(
-        "/organizations/" +
-          org!.id +
-          "/calendar?from=" +
+        "/me/calendar?" +
+          (org ? "org=" + org.id + "&" : "") +
+          "from=" +
           encodeURIComponent(from) +
           "&to=" +
           encodeURIComponent(to),
@@ -112,14 +113,9 @@ export default function Dashboard({ user, org }: { user: Profile; org?: Organiza
           })}
         </>
       )}
-      <div className="section-title">
-        <h2>나한테 맞는 기회</h2>
-        <span className="badge">AI FIND · 준비 중</span>
-      </div>
+      <Recommendations />
       <Panel title="캠퍼스의 더 많은 가능성">
-        <p className="muted">
-          프로그램 추천과 팀 구하기는 준비 중이에요. 동아리는 찾기에서 탐색하고 가입할 수 있어요.
-        </p>
+        <p className="muted">프로그램을 찾고, 팀을 모으고, 동아리에 가입해 보세요.</p>
         <Link className="meta" to="/discover">
           찾기에서 보기 →
         </Link>
