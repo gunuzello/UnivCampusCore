@@ -1,3 +1,4 @@
+import type { ClubInfo } from "./ClubDetailsPanel";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { request, type Organization, type Profile } from "./api";
@@ -21,6 +22,11 @@ export default function MembershipRequestsPanel({ org }: { org: Organization }) 
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
   const path = "/organizations/" + org.id + "/membership-requests";
+  const club = useQuery({
+    queryKey: ["club-details", org.id],
+    queryFn: () => request<ClubInfo>("/organizations/" + org.id + "/club-details"),
+    enabled: org.type === "CLUB",
+  });
   const mine = useQuery({
     queryKey: ["membership-requests", org.id, "mine"],
     queryFn: () => request<JoinRequest | null>(path + "/me"),
@@ -124,7 +130,12 @@ export default function MembershipRequestsPanel({ org }: { org: Organization }) 
                       대표가 승인하면 구성원으로 가입해요. 운영진 권한은 대표가 별도로 지정해요.
                     </p>
                     <ErrorMessage error={error} />
-                    <button className="primary" disabled={busy}>
+                    <button
+                      className="primary"
+                      disabled={
+                        busy || (org.type === "CLUB" && (!club.data?.open || club.isPending))
+                      }
+                    >
                       {busy ? "접수 중…" : "가입 신청"}
                     </button>
                   </form>

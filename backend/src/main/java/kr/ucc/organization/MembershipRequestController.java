@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @Transactional
 public class MembershipRequestController {
 
+  private final ClubRecruitmentService clubRecruitment;
   private final MembershipRequestRepository requests;
   private final OrganizationRepository organizations;
   private final MembershipRepository memberships;
@@ -31,8 +32,10 @@ public class MembershipRequestController {
     MembershipRepository memberships,
     UserRepository users,
     OrganizationAccess access,
-    Notifications notifications
+    Notifications notifications,
+    ClubRecruitmentService clubRecruitment
   ) {
+    this.clubRecruitment = clubRecruitment;
     this.requests = requests;
     this.organizations = organizations;
     this.memberships = memberships;
@@ -69,6 +72,7 @@ public class MembershipRequestController {
   View apply(@PathVariable Long org, @Valid @RequestBody Input d, Authentication a) {
     long user = CurrentUser.id(a);
     var organization = organizations.lockById(org).orElseThrow(ApiException::missing);
+    clubRecruitment.check(organization);
     if (memberships.findByOrganizationIdAndUserId(org, user).isPresent()) throw ApiException.bad(
       "ALREADY_MEMBER",
       "이미 소속 구성원입니다."

@@ -1,3 +1,4 @@
+import ClubDetailsPanel from "./ClubDetailsPanel";
 import OrganizationWorkPanel from "./OrganizationWorkPanel";
 import NoticesPanel from "./NoticesPanel";
 import MembershipRequestsPanel from "./MembershipRequestsPanel";
@@ -134,6 +135,7 @@ export default function OrganizationPage({
             <Empty>학생회를 만들거나 상단에서 선택해 주세요.</Empty>
           )}
         </Panel>
+        {org?.type === "CLUB" && <ClubDetailsPanel key={org.id} org={org} />}
         {org && <NoticesPanel key={org.id} org={org} />}
         {org?.role && (
           <Panel title="함께하는 구성원">
