@@ -22,7 +22,7 @@ export default function CalendarPage({ org }: { org?: Organization }) {
   const query = useQueryClient();
   const [cursor, setCursor] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(new Date());
-  const [mode, setMode] = useState<"month" | "week">("month");
+  const [mode, setMode] = useState<"month" | "week" | "day">("month");
   const [form, setForm] = useState(false);
   const [editing, setEditing] = useState<Entry>();
   const [error, setError] = useState<unknown>();
@@ -31,6 +31,10 @@ export default function CalendarPage({ org }: { org?: Organization }) {
   if (mode === "month") {
     from = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
     to = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+  } else if (mode === "day") {
+    from = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
+    to = new Date(from);
+    to.setDate(to.getDate() + 1);
   } else {
     from = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
     from.setDate(from.getDate() - ((from.getDay() + 6) % 7));
@@ -76,7 +80,7 @@ export default function CalendarPage({ org }: { org?: Organization }) {
             if (mode === "month") {
               d.setDate(1);
               d.setMonth(d.getMonth() - 1);
-            } else d.setDate(d.getDate() - 7);
+            } else d.setDate(d.getDate() - (mode === "day" ? 1 : 7));
             setCursor(d);
             setSelectedDay(d);
           }}
@@ -85,7 +89,11 @@ export default function CalendarPage({ org }: { org?: Organization }) {
         </button>
         <strong>
           {from.getFullYear()}년 {from.getMonth() + 1}월
-          {mode === "week" ? " " + from.getDate() + "일 주" : ""}
+          {mode === "week"
+            ? " " + from.getDate() + "일 주"
+            : mode === "day"
+              ? " " + from.getDate() + "일"
+              : ""}
         </strong>
         <button
           className="secondary"
@@ -94,7 +102,7 @@ export default function CalendarPage({ org }: { org?: Organization }) {
             if (mode === "month") {
               d.setDate(1);
               d.setMonth(d.getMonth() + 1);
-            } else d.setDate(d.getDate() + 7);
+            } else d.setDate(d.getDate() + (mode === "day" ? 1 : 7));
             setCursor(d);
             setSelectedDay(d);
           }}
@@ -102,9 +110,15 @@ export default function CalendarPage({ org }: { org?: Organization }) {
           다음 →
         </button>
         <button
-          className="secondary"
+          aria-pressed={mode === "day" && cursor.toDateString() === new Date().toDateString()}
+          className={
+            mode === "day" && cursor.toDateString() === new Date().toDateString()
+              ? "primary"
+              : "secondary"
+          }
           onClick={() => {
             const today = new Date();
+            setMode("day");
             setCursor(today);
             setSelectedDay(today);
           }}
@@ -230,65 +244,70 @@ export default function CalendarPage({ org }: { org?: Organization }) {
           </form>
         </Panel>
       )}
-      <Panel title="통합 일정">
-        <div className="calendar-grid">
-          {["월", "화", "수", "목", "금", "토", "일"].map((d) => (
-            <div className="calendar-label" key={d}>
-              {d}
-            </div>
-          ))}
-          {Array.from({ length: blanks }, (_, i) => (
-            <div key={"blank-" + i} />
-          ))}
-          {days.map((d) => {
-            const entries = dayEntries(d);
-            return (
-              <div
-                className={
-                  "calendar-day " +
-                  (d.toDateString() === new Date().toDateString() ? "today " : "") +
-                  (d.toDateString() === selectedDay.toDateString() ? "selected" : "")
-                }
-                key={d.toISOString()}
-              >
-                <small className="desktop-day">{d.getDate()}</small>
-                <button
-                  className="mobile-day"
-                  aria-label={`${d.getMonth() + 1}월 ${d.getDate()}일, 일정 ${entries.length}개`}
-                  aria-pressed={d.toDateString() === selectedDay.toDateString()}
-                  onClick={() => setSelectedDay(d)}
-                >
-                  <span>{d.getDate()}</span>
-                  <span className="day-count">{entries.length ? `${entries.length}개` : ""}</span>
-                </button>
-                <div className="desktop-events">
-                  {entries.map((e) =>
-                    e.path ? (
-                      <Link key={e.key} to={e.path} className={e.type.toLowerCase()}>
-                        {e.title}
-                      </Link>
-                    ) : (
-                      <button
-                        key={e.key}
-                        className="calendar-entry"
-                        onClick={() => {
-                          if (e.canManage) {
-                            setEditing(e);
-                            setForm(true);
-                          }
-                        }}
-                      >
-                        {e.title}
-                      </button>
-                    ),
-                  )}
-                </div>
+      {mode !== "day" && (
+        <Panel title="통합 일정">
+          <div className="calendar-grid">
+            {["월", "화", "수", "목", "금", "토", "일"].map((d) => (
+              <div className="calendar-label" key={d}>
+                {d}
               </div>
-            );
-          })}
-        </div>
-      </Panel>
-      <section className="mobile-agenda card" aria-live="polite">
+            ))}
+            {Array.from({ length: blanks }, (_, i) => (
+              <div key={"blank-" + i} />
+            ))}
+            {days.map((d) => {
+              const entries = dayEntries(d);
+              return (
+                <div
+                  className={
+                    "calendar-day " +
+                    (d.toDateString() === new Date().toDateString() ? "today " : "") +
+                    (d.toDateString() === selectedDay.toDateString() ? "selected" : "")
+                  }
+                  key={d.toISOString()}
+                >
+                  <small className="desktop-day">{d.getDate()}</small>
+                  <button
+                    className="mobile-day"
+                    aria-label={`${d.getMonth() + 1}월 ${d.getDate()}일, 일정 ${entries.length}개`}
+                    aria-pressed={d.toDateString() === selectedDay.toDateString()}
+                    onClick={() => setSelectedDay(d)}
+                  >
+                    <span>{d.getDate()}</span>
+                    <span className="day-count">{entries.length ? `${entries.length}개` : ""}</span>
+                  </button>
+                  <div className="desktop-events">
+                    {entries.map((e) =>
+                      e.path ? (
+                        <Link key={e.key} to={e.path} className={e.type.toLowerCase()}>
+                          {e.title}
+                        </Link>
+                      ) : (
+                        <button
+                          key={e.key}
+                          className="calendar-entry"
+                          onClick={() => {
+                            if (e.canManage) {
+                              setEditing(e);
+                              setForm(true);
+                            }
+                          }}
+                        >
+                          {e.title}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Panel>
+      )}
+      <section
+        className={(mode === "day" ? "daily-agenda" : "mobile-agenda") + " card"}
+        aria-live="polite"
+      >
         <h2>
           {selectedDay.getMonth() + 1}월 {selectedDay.getDate()}일 일정{" "}
           <span className="badge">{selectedEntries.length}개</span>
@@ -320,50 +339,52 @@ export default function CalendarPage({ org }: { org?: Organization }) {
           </div>
         ))}
       </section>
-      <Panel title="기간 내 일정 목록">
-        {!q.isPending && !q.error && !q.data?.length && <Empty>이 기간의 일정이 없어요.</Empty>}
-        {q.data?.map((e) => (
-          <div className="list-row" key={e.key}>
-            <div>
-              {e.path ? (
-                <Link to={e.path}>
-                  <strong>{e.title} →</strong>
-                </Link>
-              ) : (
-                <strong>{e.title}</strong>
-              )}
-              <p className="meta">
-                {date(e.startsAt)} — {date(e.endsAt)}
-              </p>
-              <p className="muted">{e.description?.slice(0, 150)}</p>
-            </div>
-            {e.canManage && (
-              <div className="toolbar">
-                <button
-                  className="secondary"
-                  onClick={() => {
-                    setEditing(e);
-                    setForm(true);
-                  }}
-                >
-                  수정
-                </button>
-                <Action
-                  label="삭제"
-                  danger
-                  onAction={async () => {
-                    if (!confirm("내부 일정을 삭제할까요?")) return;
-                    await request("/schedules/" + e.id, "DELETE");
-                    await query.invalidateQueries({ queryKey: ["calendar"] });
-                    await query.invalidateQueries({ queryKey: ["archive"] });
-                    await query.invalidateQueries({ queryKey: ["schedule"] });
-                  }}
-                />
+      {mode !== "day" && (
+        <Panel title="기간 내 일정 목록">
+          {!q.isPending && !q.error && !q.data?.length && <Empty>이 기간의 일정이 없어요.</Empty>}
+          {q.data?.map((e) => (
+            <div className="list-row" key={e.key}>
+              <div>
+                {e.path ? (
+                  <Link to={e.path}>
+                    <strong>{e.title} →</strong>
+                  </Link>
+                ) : (
+                  <strong>{e.title}</strong>
+                )}
+                <p className="meta">
+                  {date(e.startsAt)} — {date(e.endsAt)}
+                </p>
+                <p className="muted">{e.description?.slice(0, 150)}</p>
               </div>
-            )}
-          </div>
-        ))}
-      </Panel>
+              {e.canManage && (
+                <div className="toolbar">
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setEditing(e);
+                      setForm(true);
+                    }}
+                  >
+                    수정
+                  </button>
+                  <Action
+                    label="삭제"
+                    danger
+                    onAction={async () => {
+                      if (!confirm("내부 일정을 삭제할까요?")) return;
+                      await request("/schedules/" + e.id, "DELETE");
+                      await query.invalidateQueries({ queryKey: ["calendar"] });
+                      await query.invalidateQueries({ queryKey: ["archive"] });
+                      await query.invalidateQueries({ queryKey: ["schedule"] });
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </Panel>
+      )}
     </>
   );
 }

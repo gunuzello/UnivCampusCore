@@ -67,7 +67,7 @@ npm run dev
 - 웹 내부 알림, 본인 신청·지원 목록.
 - 대여 물품·재고·신청 기간(수령 후 일수), 학생 신청·취소, 운영진 수령·반려·반납, 연체·대여 이력.
 
-AI FIND와 외부 서비스 직접 연동은 이번 요청에서 제외했다. 추천은 개인 관심 키워드와 공고 내용의 일치를 근거로 제공한다. 채팅과 결제는 구현 범위에 포함하지 않는다.
+AI FIND는 유료 AI 없이 맞춤 찾기로 구현했다. 관심·활동·수강 경험·기술 키워드와 공고를 비교하고 일치 개수와 이유를 제공한다. 외부 서비스 직접 연동은 제외한다. 채팅과 결제는 구현 범위에 포함하지 않는다.
 
 ## 검증
 
@@ -83,7 +83,7 @@ GitHub Actions에도 PostgreSQL 기반 백엔드 테스트와 프론트엔드 �
 
 - Frontend: TypeScript, React, Vite, React Router, TanStack Query.
 - Backend: Java 17 호환, Spring Boot 3.5.5, JPA, Spring Security, OpenAPI.
-- Database: PostgreSQL 16, Flyway V1–V14 마이그레이션.
+- Database: PostgreSQL 16, Flyway V1–V15 마이그레이션.
 - Architecture: 도메인별 패키지를 둔 단일 Spring Boot 애플리케이션.
 - 인증: HttpOnly 세션 쿠키 + CSRF 토큰. 웹은 Vite 프록시로 같은 출처에서 API를 호출한다.
 

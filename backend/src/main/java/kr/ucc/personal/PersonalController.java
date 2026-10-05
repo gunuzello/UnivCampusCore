@@ -27,6 +27,7 @@ public class PersonalController {
   private final UserRepository users;
   private final ProgramRepository programs;
   private final TeamRepository teams;
+  private final TeamApplicationRepository teamApplications;
   private final EventService events;
   private final RecruitmentService recruitments;
   private final OrganizationAccess access;
@@ -37,6 +38,7 @@ public class PersonalController {
     UserRepository users,
     ProgramRepository programs,
     TeamRepository teams,
+    TeamApplicationRepository teamApplications,
     EventService events,
     RecruitmentService recruitments,
     OrganizationAccess access
@@ -46,6 +48,7 @@ public class PersonalController {
     this.users = users;
     this.programs = programs;
     this.teams = teams;
+    this.teamApplications = teamApplications;
     this.events = events;
     this.recruitments = recruitments;
     this.access = access;
@@ -171,7 +174,15 @@ public class PersonalController {
   List<Recommendation> recommend(Authentication a) {
     var p = profiles.findById(CurrentUser.id(a)).orElseGet(InterestProfile::new);
     var terms = Arrays.stream(
-      (Objects.toString(p.interests, "") + "," + Objects.toString(p.activities, "")).split("[,\n]")
+      (
+        Objects.toString(p.interests, "") +
+        "," +
+        Objects.toString(p.activities, "") +
+        "," +
+        Objects.toString(p.skills, "") +
+        "," +
+        Objects.toString(p.courses, "")
+      ).split("[,\n]")
     )
       .map(String::strip)
       .filter(s -> !s.isBlank())
@@ -189,7 +200,17 @@ public class PersonalController {
         terms
       );
     for (var team : teams.findAll())
-      if (team.status.equals("OPEN") && Instant.now().isBefore(team.deadline)) add(
+      if (
+        team.status.equals("OPEN") &&
+        Instant.now().isBefore(team.deadline) &&
+        1 +
+          teamApplications
+            .findByTeamId(team.id)
+            .stream()
+            .filter(application -> "ACCEPTED".equals(application.status))
+            .count() <
+          team.capacity
+      ) add(
         result,
         "TEAM",
         team.id,
@@ -218,13 +239,15 @@ public class PersonalController {
       .stream()
       .filter(t -> text.toLowerCase(Locale.ROOT).contains(t.toLowerCase(Locale.ROOT)))
       .toList();
-    if (!matches.isEmpty()) out.add(
+    out.add(
       new Recommendation(
         type,
         id,
         title,
         (type.equals("PROGRAM") ? "/programs/" : "/teams/") + id,
-        "관심 키워드 일치: " + String.join(", ", matches),
+        matches.isEmpty()
+          ? "현재 모집 중 · 등록한 관심 키워드와 직접 일치하는 내용은 없어요"
+          : "관심·경험 일치: " + String.join(", ", matches),
         matches.size()
       )
     );

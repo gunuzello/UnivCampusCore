@@ -849,7 +849,7 @@ header {
 .toolbar .field {
   margin: 0;
 }
-.toolbar input {
+.toolbar > input {
   flex: 1 1 180px;
 }
 .segmented {

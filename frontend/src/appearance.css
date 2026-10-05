@@ -679,3 +679,29 @@ section.card form > button.primary {
     background: #141d2cfa;
   }
 }
+
+.toolbar .field input,
+.toolbar .field select {
+  flex: none;
+  height: 48px;
+  width: 100%;
+}
+.toolbar > label:not(.field) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 13px;
+}
+.toolbar > label:not(.field) input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.opportunity-card > .badge {
+  align-self: flex-start;
+}
+
+.match-intro { margin: 24px 0; background: var(--surface); }
+.daily-agenda { margin-top: 24px; }
+.daily-agenda h2 { margin-top: 0; }

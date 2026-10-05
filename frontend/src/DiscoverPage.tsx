@@ -2,10 +2,11 @@ import { useSearchParams } from "react-router-dom";
 import type { Organization } from "./api";
 import { ProgramList } from "./ProgramPages";
 import { TeamList } from "./TeamPages";
+import MatchFinder from "./MatchFinder";
 import ClubList from "./ClubList";
 export default function DiscoverPage({ org }: { org?: Organization }) {
-  const tabs = ["프로그램", "팀 구하기", "동아리"];
-  const keys = ["programs", "teams", "clubs"];
+  const tabs = ["프로그램", "팀 구하기", "동아리", "맞춤 찾기"];
+  const keys = ["programs", "teams", "clubs", "matches"];
   const [params, setParams] = useSearchParams();
   const index = keys.indexOf(params.get("tab") || "programs");
   const tab = tabs[index < 0 ? 0 : index];
@@ -58,6 +59,8 @@ export default function DiscoverPage({ org }: { org?: Organization }) {
           <ProgramList key={org?.id} org={org} />
         ) : tab === "팀 구하기" ? (
           <TeamList />
+        ) : tab === "맞춤 찾기" ? (
+          <MatchFinder />
         ) : (
           <ClubList />
         )}

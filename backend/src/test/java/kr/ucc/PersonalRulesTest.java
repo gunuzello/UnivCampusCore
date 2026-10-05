@@ -52,6 +52,47 @@ class PersonalRulesTest {
     memberships.save(new Membership(org, staff, Membership.Role.STAFF));
   }
 
+  @Autowired
+  kr.ucc.team.TeamRepository teams;
+
+  @Test
+  void discoveryFallsBackToOpenActivitiesAndUsesSkillsWithoutLeakingClosedTeams() throws Exception {
+    for (String state : new String[] { "OPEN", "COMPLETED", "EXPIRED" }) {
+      var team = new kr.ucc.team.Team();
+      team.ownerId = leader;
+      team.title = "React 프로젝트 " + state;
+      team.content = "함께 개발해요";
+      team.roles = "개발";
+      team.tags = "React";
+      team.capacity = 3;
+      team.status = state.equals("EXPIRED") ? "OPEN" : state;
+      team.deadline = java.time.Instant.now().plusSeconds(state.equals("EXPIRED") ? -60 : 86400);
+      teams.save(team);
+    }
+    mvc
+      .perform(get("/api/v1/me/recommendations").with(user(student.toString())))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$.length()").value(1))
+      .andExpect(jsonPath("$[0].score").value(0));
+    mvc
+      .perform(
+        put("/api/v1/me/interests")
+          .with(user(student.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content("{\"skills\":\"react\"}")
+      )
+      .andExpect(status().isOk());
+    mvc
+      .perform(get("/api/v1/me/recommendations").with(user(student.toString())))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[0].score").value(1));
+    mvc
+      .perform(get("/api/v1/me/recommendations").with(user(staff.toString())))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[0].score").value(0));
+  }
+
   @Test
   void profileAndSavedActivitiesArePrivateAndIdempotent() throws Exception {
     mvc
