@@ -102,6 +102,115 @@ class OrganizationWorkTest {
     );
   }
 
+  private Long createStaffRequest() throws Exception {
+    memberships.save(new Membership(org, student, Membership.Role.MEMBER));
+    var result = mvc
+      .perform(
+        post("/api/v1/organizations/" + org + "/work")
+          .with(user(student.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content(
+            json.writeValueAsString(
+              Map.of(
+                "kind",
+                "ROLE",
+                "title",
+                "운영진 신청",
+                "content",
+                "모집 활동을 돕고 싶어요.",
+                "requestedRole",
+                "STAFF"
+              )
+            )
+          )
+      )
+      .andExpect(status().isOk())
+      .andReturn();
+    return json.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+  }
+
+  @Test
+  void staleRoleRequestCannotDemoteTheLastRepresentative() throws Exception {
+    Long id = createStaffRequest();
+    memberships.findByOrganizationIdAndUserId(org, student).orElseThrow().role =
+      Membership.Role.LEADER;
+    memberships.findByOrganizationIdAndUserId(org, leader).orElseThrow().role =
+      Membership.Role.STAFF;
+    String path = "/api/v1/organizations/" + org + "/work";
+    mvc
+      .perform(
+        patch(path + "/" + id + "/status")
+          .with(user(student.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content("{\"status\":\"ACCEPTED\"}")
+      )
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.code").value("LAST_LEADER"));
+    assertEquals(
+      Membership.Role.LEADER,
+      memberships.findByOrganizationIdAndUserId(org, student).orElseThrow().role
+    );
+    assertEquals(1, memberships.countByOrganizationIdAndRole(org, Membership.Role.LEADER));
+    mvc
+      .perform(get(path).with(user(student.toString())))
+      .andExpect(status().isOk())
+      .andExpect(jsonPath("$[0].status").value("PENDING"));
+  }
+
+  @Test
+  void requestCannotBeApprovedAfterTheRequestedRoleWasGrantedElsewhere() throws Exception {
+    Long id = createStaffRequest();
+    memberships.findByOrganizationIdAndUserId(org, student).orElseThrow().role =
+      Membership.Role.STAFF;
+    mvc
+      .perform(
+        patch("/api/v1/organizations/" + org + "/work/" + id + "/status")
+          .with(user(leader.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content("{\"status\":\"ACCEPTED\"}")
+      )
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.code").value("ROLE_CHANGED"));
+    assertEquals(
+      Membership.Role.STAFF,
+      memberships.findByOrganizationIdAndUserId(org, student).orElseThrow().role
+    );
+  }
+
+  @Test
+  void processingAnApprovedRequestAgainDoesNotOverwriteTheCurrentRole() throws Exception {
+    Long id = createStaffRequest();
+    String path = "/api/v1/organizations/" + org + "/work/" + id + "/status";
+    mvc
+      .perform(
+        patch(path)
+          .with(user(leader.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content("{\"status\":\"ACCEPTED\"}")
+      )
+      .andExpect(status().isOk());
+    memberships.findByOrganizationIdAndUserId(org, student).orElseThrow().role =
+      Membership.Role.LEADER;
+    mvc
+      .perform(
+        patch(path)
+          .with(user(leader.toString()))
+          .with(csrf())
+          .contentType("application/json")
+          .content("{\"status\":\"ACCEPTED\"}")
+      )
+      .andExpect(status().isBadRequest())
+      .andExpect(jsonPath("$.code").value("INVALID_STATUS"));
+    assertEquals(
+      Membership.Role.LEADER,
+      memberships.findByOrganizationIdAndUserId(org, student).orElseThrow().role
+    );
+  }
+
   @Test
   void suggestionPrivacyAndTaskAssignment() throws Exception {
     String path = "/api/v1/organizations/" + org + "/work";

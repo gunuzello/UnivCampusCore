@@ -246,8 +246,29 @@ public class OrganizationWorkController {
           "INVALID_STATUS",
           "승인 또는 반려를 선택해 주세요."
         );
-        if (d.status().equals("ACCEPTED")) access.member(org, w.creatorId).role =
-          Membership.Role.valueOf(w.requestedRole);
+        if (!w.status.equals("PENDING")) throw ApiException.bad(
+          "INVALID_STATUS",
+          "처리된 요청입니다."
+        );
+        if (d.status().equals("ACCEPTED")) {
+          var member = access.member(org, w.creatorId);
+          var requestedRole = Membership.Role.valueOf(w.requestedRole);
+          if (
+            member.role == Membership.Role.LEADER &&
+            requestedRole != Membership.Role.LEADER &&
+            memberships.countByOrganizationIdAndRole(org, Membership.Role.LEADER) <= 1
+          ) throw ApiException.bad(
+            "LAST_LEADER",
+            "마지막 대표의 권한은 낮출 수 없습니다. 변경된 역할을 확인하고 신청을 반려해 주세요."
+          );
+          if (
+            member.role == requestedRole || member.role == Membership.Role.LEADER
+          ) throw ApiException.bad(
+            "ROLE_CHANGED",
+            "신청 이후 구성원의 역할이 변경되었습니다. 현재 역할을 확인하고 신청을 반려해 주세요."
+          );
+          member.role = requestedRole;
+        }
       } else {
         access.staff(org, u);
         if (
